@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Settings {
+  id                String @id @default("main")
+  openingCashBalance Float  @default(0)
+  openingUpiBalance  Float  @default(0)
+}
+
+model Member {
+  id                  String   @id @default(cuid())
+  memberId            String   @unique
+  name                String
+  phoneNumber         String
+  joinDate            DateTime
+  expiryDate          DateTime
+  membershipPlan      String   @default("1 Month")
+  durationMonths      Int      @default(1)
+  planPrice           Float    @default(0)
+  currentCashPayment  Float    @default(0)
+  currentUpiPayment   Float    @default(0)
+  totalPayment        Float    @default(0)
+  totalCash           Float    @default(0)
+  totalUpi            Float    @default(0)
+  pendingPayment      Float    @default(0)
+  refundAmount        Float    @default(0)
+  status              String   @default("Active")
+  notes               String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id           String   @id @default(cuid())
+  memberId     String
+  member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  paymentMode  String   @default("Cash")
+  amount       Float
+  plan         String   @default("1 Month")
+  duration     Int      @default(1)
+  paymentDate  DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
+
+model Expense {
+  id           String   @id @default(cuid())
+  category     String
+  note         String   @default("")
+  cashAmount   Float    @default(0)
+  upiAmount    Float    @default(0)
+  expenseDate  DateTime @default(now())
+  createdAt    DateTime @default(now())
+}
