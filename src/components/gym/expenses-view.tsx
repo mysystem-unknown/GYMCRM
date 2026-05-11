@@ -28,7 +28,7 @@ export function ExpensesView() {
   const [note, setNote] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [upiAmount, setUpiAmount] = useState('');
-  const [expenseDate, setExpenseDate] = useState<Date>(new Date());
+  const [expenseDate, setExpenseDate] = useState<Date | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
@@ -64,7 +64,7 @@ export function ExpensesView() {
           note,
           cashAmount: parseFloat(cashAmount) || 0,
           upiAmount: parseFloat(upiAmount) || 0,
-          expenseDate: expenseDate.toISOString(),
+          expenseDate: (expenseDate || new Date()).toISOString(),
         }),
       });
       toast.success('Expense added');
@@ -176,7 +176,7 @@ export function ExpensesView() {
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start text-left font-normal text-sm h-9">
                         <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                        {format(expenseDate, 'dd MMM yyyy')}
+                        {expenseDate ? format(expenseDate, 'dd MMM yyyy') : 'Pick a date'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">

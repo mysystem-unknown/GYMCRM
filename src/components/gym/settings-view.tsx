@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Settings, Save, IndianRupee, Banknote, Smartphone } from 'lucide-react';
+import { Settings, Save, Banknote, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function SettingsView() {

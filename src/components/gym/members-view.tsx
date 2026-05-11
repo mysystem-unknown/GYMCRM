@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAPI, formatCurrency, formatDate, getStatusColor, exportToCSV } from '@/lib/api';
+import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
+import { exportToCSV } from '@/lib/export';
 import type { Member } from '@/types/gym';
 import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,7 +33,6 @@ export function MembersView() {
   const [planFilter, setPlanFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [allMembers, setAllMembers] = useState<Member[]>([]);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
@@ -61,15 +61,6 @@ export function MembersView() {
       setLoading(false);
     }
   }, [debouncedSearch, statusFilter, planFilter, page]);
-
-  const loadAllMembers = useCallback(async () => {
-    try {
-      const result = await fetchAPI<{ members: Member[] }>('/api/members?limit=1000');
-      setAllMembers(result.members);
-    } catch (err) {
-      console.error(err);
-    }
-  }, []);
 
   useEffect(() => {
     loadMembers();
@@ -100,32 +91,26 @@ export function MembersView() {
     setShowEditMemberModal(true);
   };
 
-  const handleExport = () => {
-    if (allMembers.length === 0) {
-      loadAllMembers().then(() => {
-        setTimeout(() => {
-          if (allMembers.length > 0) {
-            const exportData = allMembers.map(m => ({
-              'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
-              'Join Date': formatDate(m.joinDate), 'Expiry Date': formatDate(m.expiryDate),
-              'Plan': m.membershipPlan, 'Cash': m.currentCashPayment, 'UPI': m.currentUpiPayment,
-              'Total': m.totalPayment, 'Pending': m.pendingPayment, 'Status': m.status,
-            }));
-            exportToCSV(exportData, 'gym-members.csv');
-            toast.success('CSV exported');
-          }
-        }, 500);
-      });
-      return;
+  const handleExport = async () => {
+    try {
+      toast.loading('Exporting CSV...');
+      const result = await fetchAPI<{ members: Member[] }>('/api/members?limit=1000');
+      const data = result.members;
+      if (data.length === 0) {
+        toast.error('No members to export');
+        return;
+      }
+      const exportData = data.map(m => ({
+        'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
+        'Join Date': formatDate(m.joinDate), 'Expiry Date': formatDate(m.expiryDate),
+        'Plan': m.membershipPlan, 'Cash': m.currentCashPayment, 'UPI': m.currentUpiPayment,
+        'Total': m.totalPayment, 'Pending': m.pendingPayment, 'Status': m.status,
+      }));
+      exportToCSV(exportData, 'gym-members.csv');
+      toast.success(`${data.length} members exported`);
+    } catch {
+      toast.error('Failed to export CSV');
     }
-    const exportData = allMembers.map(m => ({
-      'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
-      'Join Date': formatDate(m.joinDate), 'Expiry Date': formatDate(m.expiryDate),
-      'Plan': m.membershipPlan, 'Cash': m.currentCashPayment, 'UPI': m.currentUpiPayment,
-      'Total': m.totalPayment, 'Pending': m.pendingPayment, 'Status': m.status,
-    }));
-    exportToCSV(exportData, 'gym-members.csv');
-    toast.success('CSV exported');
   };
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);

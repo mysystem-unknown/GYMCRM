@@ -29,18 +29,20 @@ export function AddMemberModal() {
   const [plan, setPlan] = useState('1 Month');
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [amount, setAmount] = useState('1500');
-  const [joinDate, setJoinDate] = useState<Date>(new Date());
+  const [joinDate, setJoinDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
 
   const selectedPlan = planOptions.find((p) => p.label === plan);
-  const expiryDate = new Date(joinDate);
-  expiryDate.setMonth(expiryDate.getMonth() + (selectedPlan?.months || 1));
+  const expiryDate = joinDate
+    ? new Date(new Date(joinDate).setMonth(joinDate.getMonth() + (selectedPlan?.months || 1)))
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) { toast.error('Name is required'); return; }
     if (!phone.trim()) { toast.error('Phone number is required'); return; }
+    if (!joinDate) { toast.error('Join date is required'); return; }
 
     setLoading(true);
     try {
@@ -122,7 +124,7 @@ export function AddMemberModal() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(joinDate, 'dd MMM yyyy')}
+                    {joinDate ? format(joinDate, 'dd MMM yyyy') : 'Pick a date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -132,7 +134,7 @@ export function AddMemberModal() {
             </div>
           </div>
           <div className="text-sm text-muted-foreground">
-            Expiry Date: <span className="font-medium text-foreground">{format(expiryDate, 'dd MMM yyyy')}</span>
+            Expiry Date: <span className="font-medium text-foreground">{expiryDate ? format(expiryDate, 'dd MMM yyyy') : 'Select a date'}</span>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => { setOpen(false); setShowAddMemberModal(false); }}>

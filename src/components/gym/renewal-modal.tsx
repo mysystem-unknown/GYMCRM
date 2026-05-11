@@ -27,7 +27,7 @@ export function RenewalModal() {
   const [plan, setPlan] = useState('1 Month');
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [amount, setAmount] = useState('1500');
-  const [renewalDate, setRenewalDate] = useState<Date>(new Date());
+  const [renewalDate, setRenewalDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
 
   if (!selectedMember) return null;
@@ -35,7 +35,7 @@ export function RenewalModal() {
   const selectedPlan = planOptions.find((p) => p.label === plan);
   const currentExpiry = new Date(selectedMember.expiryDate);
   const now = new Date();
-  const baseDate = currentExpiry > now ? currentExpiry : renewalDate;
+  const baseDate = currentExpiry > now ? currentExpiry : (renewalDate || now);
   const newExpiry = new Date(baseDate);
   newExpiry.setMonth(newExpiry.getMonth() + (selectedPlan?.months || 1));
 
@@ -51,7 +51,7 @@ export function RenewalModal() {
           amount: parseFloat(amount) || 0,
           plan,
           duration: selectedPlan?.months || 1,
-          paymentDate: renewalDate.toISOString(),
+          paymentDate: (renewalDate || new Date()).toISOString(),
         }),
       });
       toast.success(`${selectedMember.name}'s membership renewed until ${format(newExpiry, 'dd MMM yyyy')}!`);
@@ -131,7 +131,7 @@ export function RenewalModal() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(renewalDate, 'dd MMM yyyy')}
+                    {renewalDate ? format(renewalDate, 'dd MMM yyyy') : 'Pick a date'}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">

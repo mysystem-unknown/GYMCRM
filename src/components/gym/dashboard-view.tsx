@@ -7,15 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Users, UserCheck, UserX, Clock, TrendingUp, TrendingDown,
-  DollarSign, CreditCard, Wallet, AlertTriangle, RefreshCcw,
-  Banknote, Smartphone, ArrowUpRight, ArrowDownRight, IndianRupee,
+  AlertTriangle, RefreshCcw,
+  Banknote, Smartphone, Wallet,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
-
-const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#6366f1'];
 
 export function DashboardView() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -55,9 +53,6 @@ export function DashboardView() {
     { name: 'Cash', value: data.monthlyCash || 1 },
     { name: 'UPI', value: data.monthlyUpi || 1 },
   ];
-
-  const profitColor = data.monthlyProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400';
-  const profitIcon = data.monthlyProfit >= 0 ? ArrowUpRight : ArrowDownRight;
 
   return (
     <div className="space-y-6">

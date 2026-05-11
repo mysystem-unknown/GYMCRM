@@ -16,7 +16,6 @@ export function SearchView() {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
-  const setActiveView = useGymStore((s) => s.setActiveView);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
