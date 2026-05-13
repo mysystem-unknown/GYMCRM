@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   LayoutDashboard,
   Users,
@@ -17,27 +18,54 @@ import {
   Sun,
   Moon,
   Plus,
+  LogOut,
+  Building2,
+  BookOpen,
+  Download,
+  Shield,
 } from 'lucide-react';
 import { DashboardView } from './dashboard-view';
 import { MembersView } from './members-view';
 import { ExpensesView } from './expenses-view';
 import { SearchView } from './search-view';
 import { SettingsView } from './settings-view';
+import { HowToUseView } from './how-to-use-view';
+import { GymManagementView } from './gym-management-view';
 import { MemberProfile } from './member-profile';
 import { RenewalModal } from './renewal-modal';
 import { AddMemberModal } from './add-member-modal';
 import { EditMemberModal } from './edit-member-modal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchAPI } from '@/lib/api';
+import { toast } from 'sonner';
+
+interface UserProps {
+  user: {
+    id: string;
+    email: string;
+    name?: string | null;
+    role: string;
+    gymId?: string | null;
+  };
+}
 
 const navItems = [
-  { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'members' as const, label: 'Members', icon: Users },
-  { id: 'expenses' as const, label: 'Expenses', icon: Receipt },
-  { id: 'search' as const, label: 'Search', icon: Search },
-  { id: 'settings' as const, label: 'Settings', icon: Settings },
+  { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard, show: true },
+  { id: 'members' as const, label: 'Members', icon: Users, show: true },
+  { id: 'expenses' as const, label: 'Expenses', icon: Receipt, show: true },
+  { id: 'search' as const, label: 'Search', icon: Search, show: true },
+  { id: 'settings' as const, label: 'Settings', icon: Settings, show: true },
+  { id: 'gym-management' as const, label: 'Gyms', icon: Building2, show: true },
 ];
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ navItems, user, onExport, onSignOut, onHowToUse, onNavigate }: {
+  navItems: { id: string; label: string; icon: React.ElementType; show: boolean }[];
+  user: UserProps['user'];
+  onExport: () => void;
+  onSignOut: () => void;
+  onHowToUse: () => void;
+  onNavigate?: () => void;
+}) {
   const activeView = useGymStore((s) => s.activeView);
   const setActiveView = useGymStore((s) => s.setActiveView);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
@@ -56,7 +84,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <Separator />
       <ScrollArea className="flex-1 px-3 py-4">
         <nav className="space-y-1">
-          {navItems.map((item) => {
+          {navItems.filter(i => i.show).map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
             return (
@@ -68,10 +96,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     ? 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/15'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
-                onClick={() => {
-                  setActiveView(item.id);
-                  onNavigate?.();
-                }}
+                onClick={() => { setActiveView(item.id as any); onNavigate?.(); }}
               >
                 <Icon className="w-4 h-4" />
                 {item.label}
@@ -80,58 +105,104 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           })}
         </nav>
       </ScrollArea>
-      <div className="p-4">
-        <Button
-          className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-          onClick={() => {
-            setActiveView('members');
-            setShowAddMemberModal(true);
-            onNavigate?.();
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          Add Member
+      <Separator />
+      <div className="p-3 space-y-2">
+        <Button className="w-full justify-start gap-2 h-9 text-sm" variant="ghost" onClick={() => { onExport(); onNavigate?.(); }}>
+          <Download className="w-4 h-4" /> Export Excel
         </Button>
+        <Button className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => { setActiveView('members'); setShowAddMemberModal(true); onNavigate?.(); }}>
+          <Plus className="w-4 h-4" /> Add Member
+        </Button>
+      </div>
+      <Separator />
+      <div className="p-4 space-y-2">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-emerald-600 text-white text-xs">{user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{user?.name || 'User'}</p>
+            <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="flex-1 justify-start gap-1.5 text-xs h-8" onClick={onHowToUse}>
+            <BookOpen className="w-3 h-3" /> Help
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 justify-start gap-1.5 text-xs h-8 text-red-500 hover:text-red-700" onClick={onSignOut}>
+            <LogOut className="w-3 h-3" /> Logout
+          </Button>
+        </div>
       </div>
     </div>
   );
 }
 
-export function GymLayout() {
+export function GymLayout({ user }: UserProps) {
   const { theme, setTheme } = useTheme();
   const activeView = useGymStore((s) => s.activeView);
   const selectedMember = useGymStore((s) => s.selectedMember);
   const showRenewalModal = useGymStore((s) => s.showRenewalModal);
   const showAddMemberModal = useGymStore((s) => s.showAddMemberModal);
   const showEditMemberModal = useGymStore((s) => s.showEditMemberModal);
+  const setActiveView = useGymStore((s) => s.setActiveView);
+  const setShowHowToUse = useGymStore((s) => s.setShowHowToUse);
+
+  const isSuperAdmin = user?.role === 'super_admin';
+  const isStaff = user?.role === 'staff';
+  const userInitial = user?.name?.charAt(0)?.toUpperCase() || user?.email?.charAt(0)?.toUpperCase() || 'U';
+
+  const handleExport = async () => {
+    try {
+      toast.loading('Exporting Excel...');
+      const res = await fetch('/api/export');
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'gym-backup.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Excel backup downloaded!');
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
+  const handleSignOut = async () => {
+    await fetch('/api/auth/signout', { method: 'POST' });
+    window.location.href = '/';
+  };
 
   const renderView = () => {
-    if (selectedMember && activeView === 'members') {
-      return <MemberProfile />;
-    }
+    if (selectedMember && activeView === 'members') return <MemberProfile />;
+    if (useGymStore.getState().showHowToUse) return <HowToUseView onBack={() => setShowHowToUse(false)} />;
     switch (activeView) {
       case 'dashboard': return <DashboardView />;
       case 'members': return <MembersView />;
       case 'expenses': return <ExpensesView />;
       case 'search': return <SearchView />;
       case 'settings': return <SettingsView />;
+      case 'gym-management': return <GymManagementView />;
       default: return <DashboardView />;
     }
   };
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:border-r bg-card">
-        <SidebarContent />
+        <SidebarContent
+          navItems={navItems}
+          user={user}
+          onExport={handleExport}
+          onSignOut={handleSignOut}
+          onHowToUse={() => setShowHowToUse(true)}
+        />
       </aside>
-
-      {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Navbar */}
         <header className="flex items-center justify-between h-14 px-4 lg:px-6 border-b bg-card shrink-0">
           <div className="flex items-center gap-3">
-            {/* Mobile menu */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="lg:hidden">
@@ -139,23 +210,33 @@ export function GymLayout() {
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-64 p-0">
-                <SidebarContent />
+                <SidebarContent
+                  navItems={navItems}
+                  user={user}
+                  onExport={handleExport}
+                  onSignOut={handleSignOut}
+                  onHowToUse={() => setShowHowToUse(true)}
+                  onNavigate={() => {}}
+                />
               </SheetContent>
             </Sheet>
-            <h2 className="text-sm font-semibold capitalize">{activeView}</h2>
+            <h2 className="text-sm font-semibold capitalize">{activeView.replace('-', ' ')}</h2>
+            {isSuperAdmin && (
+              <Badge variant="outline" className="text-xs gap-1">
+                <Shield className="w-3 h-3" /> Super Admin
+              </Badge>
+            )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="h-9 w-9"
-          >
-            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-emerald-600 text-white text-xs">{userInitial}</AvatarFallback>
+            </Avatar>
+          </div>
         </header>
-
-        {/* Page Content */}
         <div className="flex-1 overflow-auto">
           <AnimatePresence mode="wait">
             <motion.div
@@ -171,8 +252,6 @@ export function GymLayout() {
           </AnimatePresence>
         </div>
       </main>
-
-      {/* Modals */}
       {showRenewalModal && <RenewalModal />}
       {showAddMemberModal && <AddMemberModal />}
       {showEditMemberModal && <EditMemberModal />}

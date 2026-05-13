@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireGymAccess } from '@/lib/auth';
 
-// GET all members with search & filters
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const gymId = searchParams.get('gymId') || undefined;
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || '';
     const plan = searchParams.get('plan') || '';
@@ -13,7 +14,11 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    const where: any = {};
+    const { error, activeGymId } = await requireGymAccess(gymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ members: [], total: 0, page: 1, totalPages: 0 });
+
+    const where: any = { gymId: activeGymId };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -45,14 +50,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST create new member
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, phoneNumber, membershipPlan, durationMonths, planPrice, paymentMode, amount, joinDate } = body;
+    const { gymId: reqGymId, name, phoneNumber, membershipPlan, durationMonths, planPrice, paymentMode, amount, joinDate } = body;
 
-    // Auto-generate member ID
+    const { error, activeGymId } = await requireGymAccess(reqGymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+
     const lastMember = await db.member.findFirst({
+      where: { gymId: activeGymId },
       orderBy: { createdAt: 'desc' },
     });
     let nextNum = 1;
@@ -62,7 +70,6 @@ export async function POST(request: NextRequest) {
     }
     const memberId = `GYM-${String(nextNum).padStart(3, '0')}`;
 
-    // Calculate expiry date
     const start = joinDate ? new Date(joinDate) : new Date();
     const expiry = new Date(start);
     expiry.setMonth(expiry.getMonth() + (durationMonths || 1));
@@ -73,9 +80,10 @@ export async function POST(request: NextRequest) {
 
     const member = await db.member.create({
       data: {
+        gymId: activeGymId,
         memberId,
         name,
-        phoneNumber,
+        phoneNumber: phoneNumber || '',
         joinDate: start,
         expiryDate: expiry,
         membershipPlan: membershipPlan || '1 Month',
@@ -91,9 +99,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create transaction
     await db.transaction.create({
       data: {
+        gymId: activeGymId,
         memberId: member.id,
         paymentMode: paymentMode || 'Cash',
         amount: amount || 0,
@@ -110,17 +118,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT update member
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
     const { id, ...data } = body;
-
-    const member = await db.member.update({
-      where: { id },
-      data,
-    });
-
+    const member = await db.member.update({ where: { id }, data });
     return NextResponse.json(member);
   } catch (error) {
     console.error('PUT member error:', error);
@@ -128,16 +130,11 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE member
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: 'Member ID required' }, { status: 400 });
-    }
-
+    if (!id) return NextResponse.json({ error: 'Member ID required' }, { status: 400 });
     await db.member.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

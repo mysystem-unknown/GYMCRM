@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
 import type { Member } from '@/types/gym';
-import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ export function SearchView() {
   const [results, setResults] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
+  const activeGymId = useGymStore((s) => s.activeGymId);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
 
   const handleSearch = useCallback(async () => {
@@ -22,14 +23,18 @@ export function SearchView() {
     setSearching(true);
     setSearched(true);
     try {
-      const result = await fetchAPI<{ members: Member[] }>(`/api/members?search=${encodeURIComponent(query.trim())}&limit=50`);
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('search', encodeURIComponent(query.trim()));
+      params.set('limit', '50');
+      const result = await fetchAPI<{ members: Member[] }>(`/api/members?${params}`);
       setResults(result.members);
     } catch {
       setResults([]);
     } finally {
       setSearching(false);
     }
-  }, [query]);
+  }, [query, activeGymId]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

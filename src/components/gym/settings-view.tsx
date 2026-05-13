@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useGymStore } from '@/store/gym-store';
 import { fetchAPI } from '@/lib/api';
+import { exportToCSV } from '@/lib/export';
+import { formatDate } from '@/lib/api';
+import type { Member } from '@/types/gym';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Settings, Save, Banknote, Smartphone } from 'lucide-react';
+import { Settings, Save, Banknote, Smartphone, Download, Database } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function SettingsView() {
@@ -15,14 +19,18 @@ export function SettingsView() {
   const [openingUpi, setUpiUpi] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const activeGymId = useGymStore((s) => s.activeGymId);
 
   useEffect(() => {
     loadSettings();
-  }, []);
+  }, [activeGymId]);
 
   const loadSettings = async () => {
     try {
-      const data = await fetchAPI<{ openingCashBalance: number; openingUpiBalance: number }>('/api/settings');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      const data = await fetchAPI<{ openingCashBalance: number; openingUpiBalance: number }>(`/api/settings?${params}`);
       setOpeningCash(String(data.openingCashBalance));
       setUpiUpi(String(data.openingUpiBalance));
     } catch {
@@ -39,6 +47,7 @@ export function SettingsView() {
       await fetchAPI('/api/settings', {
         method: 'PUT',
         body: JSON.stringify({
+          gymId: activeGymId,
           openingCashBalance: parseFloat(openingCash) || 0,
           openingUpiBalance: parseFloat(openingUpi) || 0,
         }),
@@ -48,6 +57,56 @@ export function SettingsView() {
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+    setExporting(true);
+    try {
+      toast.loading('Exporting all data as JSON...');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      const res = await fetch(`/api/export?${params}`);
+      if (!res.ok) throw new Error('Export failed');
+      const data = await res.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `gymcrm-backup-${date}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Full backup downloaded!');
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportMembersCSV = async () => {
+    try {
+      toast.loading('Exporting members as CSV...');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('limit', '1000');
+      const result = await fetchAPI<{ members: Member[] }>(`/api/members?${params}`);
+      const data = result.members;
+      if (data.length === 0) {
+        toast.error('No members to export');
+        return;
+      }
+      const exportData = data.map(m => ({
+        'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
+        'Join Date': formatDate(m.joinDate), 'Expiry Date': formatDate(m.expiryDate),
+        'Plan': m.membershipPlan, 'Cash': m.currentCashPayment, 'UPI': m.currentUpiPayment,
+        'Total': m.totalPayment, 'Pending': m.pendingPayment, 'Status': m.status,
+      }));
+      exportToCSV(exportData, 'gym-members.csv');
+      toast.success(`${data.length} members exported as CSV`);
+    } catch {
+      toast.error('CSV export failed');
     }
   };
 
@@ -123,6 +182,41 @@ export function SettingsView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Export Section */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Database className="w-4 h-4" /> Data Export
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Export your gym data for backup or migration. All exports include data for your current gym.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleExportAll}
+              disabled={exporting}
+            >
+              <Download className="w-4 h-4" />
+              Export All Data (JSON Backup)
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleExportMembersCSV}
+            >
+              <Download className="w-4 h-4" />
+              Export Members (CSV)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

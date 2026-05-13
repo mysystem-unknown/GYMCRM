@@ -7,17 +7,65 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Gym {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  address   String   @default("")
+  phone     String   @default("")
+  plan      String   @default("free")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner       User?        @relation("GymOwner")
+  members     Member[]
+  transactions Transaction[]
+  expenses    Expense[]
+  settings    Settings[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String   @default("")
+  role      String   @default("staff") // super_admin, admin, staff
+  isActive  Boolean  @default(true)
+  gymId     String?  @unique
+  gym       Gym?     @relation("GymOwner", fields: [gymId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gymId])
+}
+
+model ResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
 model Settings {
-  id                String @id @default("main")
-  openingCashBalance Float  @default(0)
-  openingUpiBalance  Float  @default(0)
+  id                 String   @id @default(cuid())
+  gymId              String   @unique
+  gym                Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  openingCashBalance Float    @default(0)
+  openingUpiBalance  Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model Member {
   id                  String   @id @default(cuid())
-  memberId            String   @unique
+  gymId               String
+  gym                 Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  memberId            String
   name                String
-  phoneNumber         String
+  phoneNumber         String   @default("")
   joinDate            DateTime
   expiryDate          DateTime
   membershipPlan      String   @default("1 Month")
@@ -36,10 +84,15 @@ model Member {
   updatedAt           DateTime @updatedAt
 
   transactions Transaction[]
+
+  @@unique([gymId, memberId])
+  @@index([gymId])
 }
 
 model Transaction {
   id           String   @id @default(cuid())
+  gymId        String
+  gym          Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
   memberId     String
   member       Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   paymentMode  String   @default("Cash")
@@ -48,14 +101,21 @@ model Transaction {
   duration     Int      @default(1)
   paymentDate  DateTime @default(now())
   createdAt    DateTime @default(now())
+
+  @@index([gymId])
+  @@index([memberId])
 }
 
 model Expense {
   id           String   @id @default(cuid())
+  gymId        String
+  gym          Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
   category     String
   note         String   @default("")
   cashAmount   Float    @default(0)
   upiAmount    Float    @default(0)
   expenseDate  DateTime @default(now())
   createdAt    DateTime @default(now())
+
+  @@index([gymId])
 }

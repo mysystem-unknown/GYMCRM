@@ -1,22 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireGymAccess } from '@/lib/auth';
 
-// GET expenses
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const month = searchParams.get('month') || '';
+    const gymId = searchParams.get('gymId') || undefined;
     const category = searchParams.get('category') || '';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    const where: any = {};
-    if (month) {
-      const startDate = new Date(`${month}-01`);
-      const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 1);
-      where.expenseDate = { gte: startDate, lt: endDate };
-    }
+    const { error, activeGymId } = await requireGymAccess(gymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ expenses: [], total: 0, page: 1, totalPages: 0 });
+
+    const where: any = { gymId: activeGymId };
     if (category) where.category = category;
 
     const [expenses, total] = await Promise.all([
@@ -36,14 +34,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST create expense
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { category, note, cashAmount, upiAmount, expenseDate } = body;
+    const { gymId: reqGymId, category, note, cashAmount, upiAmount, expenseDate } = body;
+
+    const { error, activeGymId } = await requireGymAccess(reqGymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
 
     const expense = await db.expense.create({
       data: {
+        gymId: activeGymId,
         category: category || 'Other',
         note: note || '',
         cashAmount: cashAmount || 0,
@@ -59,16 +61,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE expense
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-
-    if (!id) {
-      return NextResponse.json({ error: 'Expense ID required' }, { status: 400 });
-    }
-
+    if (!id) return NextResponse.json({ error: 'Expense ID required' }, { status: 400 });
     await db.expense.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

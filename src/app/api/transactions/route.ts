@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireGymAccess } from '@/lib/auth';
 
-// GET transactions
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId') || '';
+    const gymId = searchParams.get('gymId') || undefined;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
 
-    const where: any = {};
+    const { error, activeGymId } = await requireGymAccess(gymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ transactions: [], total: 0, page: 1, totalPages: 0 });
+
+    const where: any = { gymId: activeGymId };
     if (memberId) where.memberId = memberId;
 
     const [transactions, total] = await Promise.all([
@@ -30,17 +35,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST create transaction (renewal)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { memberId, paymentMode, amount, plan, duration, paymentDate } = body;
+    const { gymId: reqGymId, memberId, paymentMode, amount, plan, duration, paymentDate } = body;
 
-    // Get member
-    const member = await db.member.findUnique({ where: { id: memberId } });
-    if (!member) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
-    }
+    const { error, activeGymId } = await requireGymAccess(reqGymId);
+    if (error) return error;
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+
+    const member = await db.member.findFirst({ where: { id: memberId, gymId: activeGymId } });
+    if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 });
 
     const durMonths = duration || 1;
     const isCash = paymentMode === 'Cash';
@@ -48,21 +53,18 @@ export async function POST(request: NextRequest) {
     const cashAmt = isCash ? payAmt : 0;
     const upiAmt = !isCash ? payAmt : 0;
 
-    // Calculate new expiry
     const start = paymentDate ? new Date(paymentDate) : new Date();
     const currentExpiry = new Date(member.expiryDate);
     const baseDate = currentExpiry > new Date() ? currentExpiry : start;
     const newExpiry = new Date(baseDate);
     newExpiry.setMonth(newExpiry.getMonth() + durMonths);
 
-    // Determine status
     const now = new Date();
     const daysUntilExpiry = Math.ceil((newExpiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     let newStatus = 'Expired';
     if (daysUntilExpiry > 7) newStatus = 'Active';
     else if (daysUntilExpiry > 0) newStatus = 'Expiring Soon';
 
-    // Update member
     const updatedMember = await db.member.update({
       where: { id: memberId },
       data: {
@@ -76,14 +78,13 @@ export async function POST(request: NextRequest) {
         totalPayment: member.totalPayment + payAmt,
         totalCash: member.totalCash + cashAmt,
         totalUpi: member.totalUpi + upiAmt,
-        pendingPayment: Math.max(0, member.pendingPayment + (payAmt - payAmt)),
         status: newStatus,
       },
     });
 
-    // Create transaction record
     await db.transaction.create({
       data: {
+        gymId: activeGymId,
         memberId,
         paymentMode: paymentMode || 'Cash',
         amount: payAmt,

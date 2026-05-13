@@ -1,3 +1,26 @@
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  gymId: string | null;
+  gymName: string | null;
+  gymSlug: string | null;
+}
+
+export interface Gym {
+  id: string;
+  name: string;
+  slug: string;
+  address: string;
+  phone: string;
+  plan: string;
+  isActive: boolean;
+  createdAt: string;
+  owner: { id: string; email: string; name: string; role: string } | null;
+  _count: { members: number };
+}
+
 export interface Member {
   id: string;
   memberId: string;

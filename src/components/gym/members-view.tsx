@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
 import { exportToCSV } from '@/lib/export';
 import type { Member } from '@/types/gym';
-import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,6 @@ import {
 import { toast } from 'sonner';
 
 const ITEMS_PER_PAGE = 15;
-
 const plans = ['1 Month', '3 Months', '6 Months', '1 Year'];
 
 export function MembersView() {
@@ -33,6 +32,7 @@ export function MembersView() {
   const [planFilter, setPlanFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const activeGymId = useGymStore((s) => s.activeGymId);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
@@ -47,6 +47,7 @@ export function MembersView() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (planFilter !== 'all') params.set('plan', planFilter);
@@ -60,7 +61,7 @@ export function MembersView() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, statusFilter, planFilter, page]);
+  }, [debouncedSearch, statusFilter, planFilter, page, activeGymId]);
 
   useEffect(() => {
     loadMembers();
@@ -94,7 +95,10 @@ export function MembersView() {
   const handleExport = async () => {
     try {
       toast.loading('Exporting CSV...');
-      const result = await fetchAPI<{ members: Member[] }>('/api/members?limit=1000');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('limit', '1000');
+      const result = await fetchAPI<{ members: Member[] }>(`/api/members?${params}`);
       const data = result.members;
       if (data.length === 0) {
         toast.error('No members to export');

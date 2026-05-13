@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
 import type { DashboardData } from '@/types/gym';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,15 +19,18 @@ import {
 export function DashboardView() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const activeGymId = useGymStore((s) => s.activeGymId);
 
   useEffect(() => {
     loadDashboard();
-  }, []);
+  }, [activeGymId]);
 
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const result = await fetchAPI<DashboardData>('/api/dashboard');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      const result = await fetchAPI<DashboardData>(`/api/dashboard?${params}`);
       setData(result);
     } catch (err) {
       console.error(err);
@@ -58,8 +62,8 @@ export function DashboardView() {
     <div className="space-y-6">
       {/* Member Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Members" value={data.totalMembers} icon={Users} color="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
-        <StatCard title="Active Members" value={data.activeMembers} icon={UserCheck} color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+        <StatCard title="Total Members" value={data.totalMembers} icon={Users} color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+        <StatCard title="Active Members" value={data.activeMembers} icon={UserCheck} color="bg-teal-500/10 text-teal-600 dark:text-teal-400" />
         <StatCard title="Expiring Soon" value={data.expiringSoon} icon={Clock} color="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
         <StatCard title="Expired" value={data.expiredMembers} icon={UserX} color="bg-red-500/10 text-red-600 dark:text-red-400" />
       </div>
@@ -75,7 +79,7 @@ export function DashboardView() {
           subtitle={data.monthlyExpenses > 0 ? `Expenses: ${formatCurrency(data.monthlyExpenses)}` : undefined}
         />
         <StatCard title="Pending Payments" value={formatCurrency(data.totalPending)} icon={AlertTriangle} color="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
-        <StatCard title="Total Refund" value={formatCurrency(data.totalRefund)} icon={RefreshCcw} color="bg-blue-500/10 text-blue-600 dark:text-blue-400" />
+        <StatCard title="Total Refund" value={formatCurrency(data.totalRefund)} icon={RefreshCcw} color="bg-sky-500/10 text-sky-600 dark:text-sky-400" />
       </div>
 
       {/* Balance Cards */}

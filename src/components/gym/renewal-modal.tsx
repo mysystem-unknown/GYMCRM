@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { fetchAPI } from '@/lib/api';
 import { useGymStore } from '@/store/gym-store';
+import { fetchAPI } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,7 @@ const planOptions = [
 export function RenewalModal() {
   const selectedMember = useGymStore((s) => s.selectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
+  const activeGymId = useGymStore((s) => s.activeGymId);
   const [plan, setPlan] = useState('1 Month');
   const [paymentMode, setPaymentMode] = useState('UPI');
   const [amount, setAmount] = useState('1500');
@@ -46,6 +47,7 @@ export function RenewalModal() {
       await fetchAPI('/api/transactions', {
         method: 'POST',
         body: JSON.stringify({
+          gymId: activeGymId,
           memberId: selectedMember.id,
           paymentMode,
           amount: parseFloat(amount) || 0,

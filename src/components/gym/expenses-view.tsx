@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate } from '@/lib/api';
 import type { Expense } from '@/types/gym';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,18 +32,22 @@ export function ExpensesView() {
   const [expenseDate, setExpenseDate] = useState<Date | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const activeGymId = useGymStore((s) => s.activeGymId);
 
   const loadExpenses = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await fetchAPI<{ expenses: Expense[] }>('/api/expenses?limit=100');
+      const params = new URLSearchParams();
+      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('limit', '100');
+      const result = await fetchAPI<{ expenses: Expense[] }>(`/api/expenses?${params}`);
       setExpenses(result.expenses);
     } catch (err) {
       toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeGymId]);
 
   useEffect(() => {
     loadExpenses();
@@ -60,6 +65,7 @@ export function ExpensesView() {
       await fetchAPI('/api/expenses', {
         method: 'POST',
         body: JSON.stringify({
+          gymId: activeGymId,
           category,
           note,
           cashAmount: parseFloat(cashAmount) || 0,
