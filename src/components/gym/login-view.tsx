@@ -37,6 +37,8 @@ export function LoginView() {
       });
       if (result?.error) {
         toast.error('Invalid email or password');
+      } else {
+        window.location.reload();
       }
     } catch {
       toast.error('Login failed');
