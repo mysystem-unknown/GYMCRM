@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     if (error) return error;
     if (!activeGymId) return NextResponse.json({ members: [], total: 0, page: 1, totalPages: 0 });
 
-    const where: any = { gymId: activeGymId };
+    const where: Record<string, unknown> = { gymId: activeGymId };
     if (search) {
       where.OR = [
         { name: { contains: search } },
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status;
     if (plan) where.membershipPlan = plan;
 
-    const orderBy: any = {};
+    const orderBy: Record<string, string> = {};
     orderBy[sortBy] = sortOrder;
 
     const [members, total] = await Promise.all([
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     const { error, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected. Please select a gym first.' }, { status: 400 });
 
     // Server-side validation
     if (!name || !name.trim()) {
@@ -66,8 +66,11 @@ export async function POST(request: NextRequest) {
     if (!phoneNumber || !phoneNumber.trim()) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
     }
-    if (amount < 0) {
-      return NextResponse.json({ error: 'Amount cannot be negative' }, { status: 400 });
+    if (phoneNumber.trim().replace(/\D/g, '').length < 10) {
+      return NextResponse.json({ error: 'Phone number must be at least 10 digits' }, { status: 400 });
+    }
+    if (typeof amount !== 'number' || amount < 0) {
+      return NextResponse.json({ error: 'Amount must be a non-negative number' }, { status: 400 });
     }
 
     const lastMember = await db.member.findFirst({
@@ -82,6 +85,9 @@ export async function POST(request: NextRequest) {
     const memberId = `GYM-${String(nextNum).padStart(3, '0')}`;
 
     const start = joinDate ? new Date(joinDate) : new Date();
+    if (isNaN(start.getTime())) {
+      return NextResponse.json({ error: 'Invalid join date' }, { status: 400 });
+    }
     const expiry = new Date(start);
     expiry.setMonth(expiry.getMonth() + (durationMonths || 1));
 
@@ -93,8 +99,8 @@ export async function POST(request: NextRequest) {
       data: {
         gymId: activeGymId,
         memberId,
-        name,
-        phoneNumber: phoneNumber || '',
+        name: name.trim(),
+        phoneNumber: phoneNumber.trim(),
         joinDate: start,
         expiryDate: expiry,
         membershipPlan: membershipPlan || '1 Month',
@@ -139,6 +145,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(member);
   } catch (error) {
     console.error('PUT member error:', error);
+    if (error instanceof Error && error.message.includes('Record to update not found')) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Failed to update member' }, { status: 500 });
   }
 }
@@ -152,6 +161,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE member error:', error);
+    if (error instanceof Error && error.message.includes('Record to delete not found')) {
+      return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Failed to delete member' }, { status: 500 });
   }
 }

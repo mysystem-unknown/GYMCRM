@@ -12,6 +12,7 @@ import {
   ArrowLeft, User, Phone, Calendar, CreditCard, RefreshCw,
   AlertCircle, History, Clock,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function MemberProfile() {
   const selectedMember = useGymStore((s) => s.selectedMember);
@@ -40,7 +41,7 @@ export function MemberProfile() {
       const result = await fetchAPI<{ transactions: Transaction[] }>(`/api/transactions?${params}`);
       setTransactions(result.transactions);
     } catch (err) {
-      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Failed to load transactions');
     } finally {
       setLoading(false);
     }

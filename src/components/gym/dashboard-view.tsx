@@ -15,10 +15,12 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts';
+import { toast } from 'sonner';
 
 export function DashboardView() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const activeGymId = useGymStore((s) => s.activeGymId);
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export function DashboardView() {
 
   const loadDashboard = async () => {
     setLoading(true);
+    setError(false);
     try {
       const params = new URLSearchParams();
       if (activeGymId) params.set('gymId', activeGymId);
@@ -34,6 +37,7 @@ export function DashboardView() {
       setData(result);
     } catch (err) {
       console.error(err);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -51,7 +55,20 @@ export function DashboardView() {
     );
   }
 
-  if (!data) return <p className="text-muted-foreground">Failed to load dashboard</p>;
+  if (error || !data) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 space-y-3">
+        <p className="text-muted-foreground">Failed to load dashboard</p>
+        <p className="text-sm text-muted-foreground">Make sure you have selected a gym.</p>
+        <button
+          onClick={loadDashboard}
+          className="text-sm text-emerald-600 dark:text-emerald-400 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
 
   const pieData = [
     { name: 'Cash', value: data.monthlyCash || 1 },

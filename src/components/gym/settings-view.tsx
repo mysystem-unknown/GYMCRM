@@ -33,8 +33,8 @@ export function SettingsView() {
       const data = await fetchAPI<{ openingCashBalance: number; openingUpiBalance: number }>(`/api/settings?${params}`);
       setOpeningCash(String(data.openingCashBalance));
       setUpiUpi(String(data.openingUpiBalance));
-    } catch {
-      toast.error('Failed to load settings');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
       setLoading(false);
     }
@@ -53,21 +53,28 @@ export function SettingsView() {
         }),
       });
       toast.success('Settings saved');
-    } catch {
-      toast.error('Failed to save settings');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
       setSaving(false);
     }
   };
 
   const handleExportAll = async () => {
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
+      return;
+    }
     setExporting(true);
     try {
       toast.loading('Exporting all data as JSON...');
       const params = new URLSearchParams();
-      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('gymId', activeGymId);
       const res = await fetch(`/api/export?${params}`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errData.error || 'Export failed');
+      }
       const data = await res.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -78,18 +85,22 @@ export function SettingsView() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Full backup downloaded!');
-    } catch {
-      toast.error('Export failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed');
     } finally {
       setExporting(false);
     }
   };
 
   const handleExportMembersCSV = async () => {
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
+      return;
+    }
     try {
       toast.loading('Exporting members as CSV...');
       const params = new URLSearchParams();
-      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('gymId', activeGymId);
       params.set('limit', '1000');
       const result = await fetchAPI<{ members: Member[] }>(`/api/members?${params}`);
       const data = result.members;
@@ -105,8 +116,8 @@ export function SettingsView() {
       }));
       exportToCSV(exportData, 'gym-members.csv');
       toast.success(`${data.length} members exported as CSV`);
-    } catch {
-      toast.error('CSV export failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'CSV export failed');
     }
   };
 

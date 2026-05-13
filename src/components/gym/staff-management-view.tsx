@@ -52,8 +52,8 @@ export function StaffManagementView() {
       if (activeGymId) params.set('gymId', activeGymId);
       const result = await fetchAPI<{ users: StaffUser[] }>(`/api/users?${params}`);
       setUsers(result.users);
-    } catch {
-      toast.error('Failed to load users');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -63,6 +63,10 @@ export function StaffManagementView() {
     e.preventDefault();
     if (!newEmail.trim() || !newPassword.trim()) {
       toast.error('Email and password are required');
+      return;
+    }
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
       return;
     }
     setCreating(true);
@@ -86,8 +90,8 @@ export function StaffManagementView() {
       setNewRole('staff');
       setNewCanRenew(false);
       loadUsers();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create staff');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create staff');
     } finally {
       setCreating(false);
     }
@@ -101,8 +105,8 @@ export function StaffManagementView() {
       });
       toast.success(`Renewal permission ${!currentVal ? 'enabled' : 'disabled'}`);
       loadUsers();
-    } catch {
-      toast.error('Failed to update permission');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update permission');
     }
   };
 
@@ -114,8 +118,8 @@ export function StaffManagementView() {
       });
       toast.success(`User ${!currentVal ? 'activated' : 'deactivated'}`);
       loadUsers();
-    } catch {
-      toast.error('Failed to update user');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update user');
     }
   };
 
@@ -125,8 +129,8 @@ export function StaffManagementView() {
       await fetchAPI(`/api/users?id=${id}`, { method: 'DELETE' });
       toast.success(`User "${email}" deleted`);
       loadUsers();
-    } catch {
-      toast.error('Failed to delete user');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete user');
     }
   };
 
@@ -138,7 +142,7 @@ export function StaffManagementView() {
     }
     setResettingId(userId);
     try {
-      const resetResult = await fetchAPI('/api/auth/forgot-password', {
+      const resetResult = await fetchAPI<{ token: string }>('/api/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify({ email }),
       });
@@ -149,8 +153,8 @@ export function StaffManagementView() {
         });
         toast.success(`Password reset for ${email}`);
       }
-    } catch {
-      toast.error('Failed to reset password');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to reset password');
     } finally {
       setResettingId(null);
     }
@@ -316,7 +320,7 @@ export function StaffManagementView() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button type="submit" disabled={creating} className="bg-emerald-600 hover:bg-emerald-700">
-                {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Create Account
               </Button>
             </DialogFooter>

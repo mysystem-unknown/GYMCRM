@@ -9,6 +9,13 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   LayoutDashboard,
   Users,
   Receipt,
@@ -25,6 +32,7 @@ import {
   Download,
   Shield,
   UserCog,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { DashboardView } from './dashboard-view';
 import { MembersView } from './members-view';
@@ -165,6 +173,9 @@ export function GymLayout({ user }: UserProps) {
   const showAddMemberModal = useGymStore((s) => s.showAddMemberModal);
   const showEditMemberModal = useGymStore((s) => s.showEditMemberModal);
   const setShowHowToUse = useGymStore((s) => s.setShowHowToUse);
+  const activeGymId = useGymStore((s) => s.activeGymId);
+  const setActiveGymId = useGymStore((s) => s.setActiveGymId);
+  const gymList = useGymStore((s) => s.gymList);
 
   const isSuperAdmin = user.role === 'super_admin';
   const isAdmin = user.role === 'admin' || isSuperAdmin;
@@ -174,10 +185,13 @@ export function GymLayout({ user }: UserProps) {
     try {
       toast.loading('Exporting Excel...');
       const params = new URLSearchParams();
-      if (user.gymId) params.set('gymId', user.gymId);
+      if (activeGymId) params.set('gymId', activeGymId);
       params.set('format', 'xlsx');
       const res = await fetch(`/api/export?${params}`);
-      if (!res.ok) throw new Error('Export failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errData.error || 'Export failed');
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -186,14 +200,19 @@ export function GymLayout({ user }: UserProps) {
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Excel backup downloaded!');
-    } catch {
-      toast.error('Export failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed');
     }
   };
 
   const handleSignOut = async () => {
     await fetch('/api/auth/signout', { method: 'POST' });
     window.location.href = '/';
+  };
+
+  const handleGymSwitch = (gymId: string) => {
+    setActiveGymId(gymId);
+    toast.success(`Switched to gym: ${gymList.find(g => g.id === gymId)?.name || gymId}`);
   };
 
   const renderView = () => {
@@ -258,6 +277,29 @@ export function GymLayout({ user }: UserProps) {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Gym selector for super_admin */}
+            {isSuperAdmin && gymList.length > 0 && (
+              <Select value={activeGymId || ''} onValueChange={handleGymSwitch}>
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <ChevronsUpDown className="w-3 h-3 mr-1 text-muted-foreground" />
+                  <SelectValue placeholder="Select gym..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {gymList.map((gym) => (
+                    <SelectItem key={gym.id} value={gym.id}>
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3 h-3" />
+                        <span>{gym.name}</span>
+                        {!gym.isActive && (
+                          <span className="text-xs text-muted-foreground">(inactive)</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
             <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

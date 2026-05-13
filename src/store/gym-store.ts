@@ -12,6 +12,12 @@ interface AuthUser {
   canRenewMemberships: boolean;
 }
 
+interface GymListItem {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface GymStore {
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
@@ -19,6 +25,8 @@ interface GymStore {
   setIsLoading: (loading: boolean) => void;
   activeGymId: string | null;
   setActiveGymId: (gymId: string | null) => void;
+  gymList: GymListItem[];
+  setGymList: (gyms: GymListItem[]) => void;
 
   activeView: 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management';
   setActiveView: (view: GymStore['activeView']) => void;
@@ -45,6 +53,8 @@ export const useGymStore = create<GymStore>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   activeGymId: null,
   setActiveGymId: (gymId) => set({ activeGymId: gymId }),
+  gymList: [],
+  setGymList: (gyms) => set({ gymList: gyms }),
 
   activeView: 'dashboard',
   setActiveView: (view) => set({ activeView: view, selectedMember: null }),

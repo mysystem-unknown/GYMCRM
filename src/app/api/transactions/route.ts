@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (error) return error;
     if (!activeGymId) return NextResponse.json({ transactions: [], total: 0, page: 1, totalPages: 0 });
 
-    const where: any = { gymId: activeGymId };
+    const where: Record<string, unknown> = { gymId: activeGymId };
     if (memberId) where.memberId = memberId;
 
     const [transactions, total] = await Promise.all([
@@ -42,13 +42,13 @@ export async function POST(request: NextRequest) {
 
     const { error, user, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected. Please select a gym first.' }, { status: 400 });
 
     if (!memberId) {
       return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
     }
 
-    if (!amount || amount <= 0) {
+    if (typeof amount !== 'number' || amount <= 0) {
       return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
     }
     if (!canRenewMember(user)) {
@@ -70,8 +70,7 @@ export async function POST(request: NextRequest) {
     const newExpiry = new Date(baseDate);
     newExpiry.setMonth(newExpiry.getMonth() + durMonths);
 
-    const now = new Date();
-    const daysUntilExpiry = Math.ceil((newExpiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const daysUntilExpiry = Math.ceil((newExpiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     let newStatus = 'Expired';
     if (daysUntilExpiry > 7) newStatus = 'Active';
     else if (daysUntilExpiry > 0) newStatus = 'Expiring Soon';

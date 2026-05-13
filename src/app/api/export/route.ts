@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     const { error, activeGymId } = await requireGymAccess(gymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected. Please select a gym first.' }, { status: 400 });
 
     const [members, transactions, expenses, settings] = await Promise.all([
       db.member.findMany({ where: { gymId: activeGymId }, orderBy: { createdAt: 'asc' } }),
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
     if (format === 'xlsx') {
       const wb = XLSX.utils.book_new();
 
-      // Members sheet
       const membersData = members.map(m => ({
         'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
         'Join Date': new Date(m.joinDate).toLocaleDateString('en-IN'),
@@ -40,7 +39,6 @@ export async function GET(request: NextRequest) {
       const ws1 = XLSX.utils.json_to_sheet(membersData);
       XLSX.utils.book_append_sheet(wb, ws1, 'Members');
 
-      // Transactions sheet
       const txData = transactions.map(t => ({
         'Member ID': t.member?.memberId || '', 'Member Name': t.member?.name || '',
         'Payment Mode': t.paymentMode, 'Amount': t.amount,
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
       const ws2 = XLSX.utils.json_to_sheet(txData);
       XLSX.utils.book_append_sheet(wb, ws2, 'Transactions');
 
-      // Expenses sheet
       const expData = expenses.map(e => ({
         'Category': e.category, 'Note': e.note,
         'Cash Amount': e.cashAmount, 'UPI Amount': e.upiAmount,
@@ -69,7 +66,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // JSON format (default)
     const data = {
       exportDate: new Date().toISOString(),
       gym: { name: gym?.name, slug: gym?.slug },

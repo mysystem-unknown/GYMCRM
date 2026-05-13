@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { fetchAPI } from '@/lib/api';
+import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +31,8 @@ export function GymManagementView() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const setActiveGymId = useGymStore((s) => s.setActiveGymId);
+  const setGymList = useGymStore((s) => s.setGymList);
 
   // Create form
   const [gymName, setGymName] = useState('');
@@ -48,8 +51,10 @@ export function GymManagementView() {
     try {
       const result = await fetchAPI<{ gyms: GymData[] }>('/api/gyms');
       setGyms(result.gyms);
+      // Update the store's gym list
+      setGymList(result.gyms.map(g => ({ id: g.id, name: g.name, isActive: g.isActive })));
     } catch (err) {
-      toast.error('Failed to load gyms');
+      toast.error(err instanceof Error ? err.message : 'Failed to load gyms');
     } finally {
       setLoading(false);
     }
@@ -63,7 +68,7 @@ export function GymManagementView() {
     }
     setCreating(true);
     try {
-      await fetchAPI('/api/gyms', {
+      const result = await fetchAPI<{ success: boolean; gym: { id: string; name: string } }>('/api/gyms', {
         method: 'POST',
         body: JSON.stringify({
           gymName: gymName.trim(),
@@ -71,7 +76,7 @@ export function GymManagementView() {
           gymPhone: gymPhone.trim(),
           adminName: ownerName.trim(),
           adminEmail: ownerEmail.trim().toLowerCase(),
-          adminPassword,
+          adminPassword: ownerPassword,
         }),
       });
       toast.success(`Gym "${gymName}" created successfully!`);
@@ -82,9 +87,15 @@ export function GymManagementView() {
       setOwnerName('');
       setOwnerEmail('');
       setOwnerPassword('');
-      loadGyms();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create gym');
+
+      // Auto-switch to the newly created gym
+      if (result.gym?.id) {
+        setActiveGymId(result.gym.id);
+      }
+
+      await loadGyms();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create gym');
     } finally {
       setCreating(false);
     }
@@ -100,8 +111,8 @@ export function GymManagementView() {
       });
       toast.success(`Gym ${action}d successfully`);
       loadGyms();
-    } catch {
-      toast.error(`Failed to ${action} gym`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to ${action} gym`);
     }
   };
 
@@ -112,8 +123,8 @@ export function GymManagementView() {
       await fetchAPI(`/api/gyms?id=${id}`, { method: 'DELETE' });
       toast.success(`Gym "${name}" deleted`);
       loadGyms();
-    } catch {
-      toast.error('Failed to delete gym');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete gym');
     } finally {
       setDeleting(null);
     }
@@ -246,7 +257,7 @@ export function GymManagementView() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
               <Button type="submit" disabled={creating} className="bg-emerald-600 hover:bg-emerald-700">
-                {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {creating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Create Gym
               </Button>
             </DialogFooter>

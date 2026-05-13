@@ -6,9 +6,12 @@ import { GymLayout } from './gym-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResetPasswordView } from './reset-password-view';
 import { useGymStore } from '@/store/gym-store';
+import { fetchAPI } from '@/lib/api';
 
 export function AuthGate() {
   const setUser = useGymStore((s) => s.setUser);
+  const setGymList = useGymStore((s) => s.setGymList);
+  const setActiveGymId = useGymStore((s) => s.setActiveGymId);
   const [ready, setReady] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
 
@@ -20,17 +23,39 @@ export function AuthGate() {
   }, []);
 
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (data) setUser(data);
-        setReady(true);
-      })
-      .catch(() => {
+    const init = async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        if (res.ok) {
+          const data = await res.json();
+          if (data) {
+            setUser(data);
+
+            // For super_admin, fetch gym list and auto-select first gym
+            if (data.role === 'super_admin') {
+              try {
+                const result = await fetchAPI<{ gyms: { id: string; name: string; isActive: boolean }[] }>('/api/gyms');
+                const gyms = result.gyms || [];
+                setGymList(gyms);
+                // Auto-select first active gym if no active gym is set
+                if (!data.gymId && gyms.length > 0) {
+                  const activeGym = gyms.find(g => g.isActive) || gyms[0];
+                  setActiveGymId(activeGym.id);
+                }
+              } catch {
+                // Gym list fetch failed, but user is still logged in
+              }
+            }
+          }
+        }
+      } catch {
         setUser(null);
+      } finally {
         setReady(true);
-      });
-  }, [setUser]);
+      }
+    };
+    init();
+  }, [setUser, setGymList, setActiveGymId]);
 
   if (resetToken) {
     return <ResetPasswordView token={resetToken} onBack={() => { window.location.search = ''; }} />;

@@ -22,41 +22,87 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    const allMembers = await db.member.findMany({ where: { gymId: activeGymId } });
+    // Bulk status update in a single query using Prisma
+    // Find all non-refunded members that need status update
+    const membersNeedingUpdate = await db.member.findMany({
+      where: {
+        gymId: activeGymId,
+        status: { not: 'Refunded' },
+      },
+    });
 
-    for (const member of allMembers) {
-      if (member.status === 'Refunded') continue;
+    const updates = membersNeedingUpdate.map(member => {
       const expiry = new Date(member.expiryDate);
       const days = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       let newStatus = 'Expired';
       if (days > 7) newStatus = 'Active';
       else if (days > 0) newStatus = 'Expiring Soon';
       if (member.status !== newStatus) {
-        await db.member.update({ where: { id: member.id }, data: { status: newStatus } });
+        return { id: member.id, status: newStatus };
       }
+      return null;
+    }).filter(Boolean) as { id: string; status: string }[];
+
+    if (updates.length > 0) {
+      await Promise.all(
+        updates.map(u => db.member.update({ where: { id: u.id }, data: { status: u.status } }))
+      );
     }
 
-    const updatedMembers = await db.member.findMany({ where: { gymId: activeGymId } });
-    const totalMembers = updatedMembers.length;
-    const activeMembers = updatedMembers.filter(m => m.status === 'Active').length;
-    const expiringSoon = updatedMembers.filter(m => m.status === 'Expiring Soon').length;
-    const expiredMembers = updatedMembers.filter(m => m.status === 'Expired').length;
-    const refundedMembers = updatedMembers.filter(m => m.status === 'Refunded').length;
-    const totalRevenue = updatedMembers.reduce((s, m) => s + m.totalPayment, 0);
-    const totalPending = updatedMembers.reduce((s, m) => s + m.pendingPayment, 0);
-    const totalRefund = updatedMembers.reduce((s, m) => s + m.refundAmount, 0);
-    const totalCash = updatedMembers.reduce((s, m) => s + m.totalCash, 0);
-    const totalUpi = updatedMembers.reduce((s, m) => s + m.totalUpi, 0);
+    // Use Prisma aggregations instead of JavaScript counting
+    const [totalMembers, activeMembers, expiringSoon, expiredMembers, refundedMembers] = await Promise.all([
+      db.member.count({ where: { gymId: activeGymId } }),
+      db.member.count({ where: { gymId: activeGymId, status: 'Active' } }),
+      db.member.count({ where: { gymId: activeGymId, status: 'Expiring Soon' } }),
+      db.member.count({ where: { gymId: activeGymId, status: 'Expired' } }),
+      db.member.count({ where: { gymId: activeGymId, status: 'Refunded' } }),
+    ]);
 
-    const monthlyTxns = await db.transaction.findMany({ where: { gymId: activeGymId, paymentDate: { gte: monthStart, lt: monthEnd } } });
-    const monthlyRevenue = monthlyTxns.reduce((s, t) => s + t.amount, 0);
-    const monthlyCash = monthlyTxns.filter(t => t.paymentMode === 'Cash').reduce((s, t) => s + t.amount, 0);
-    const monthlyUpi = monthlyTxns.filter(t => t.paymentMode === 'UPI').reduce((s, t) => s + t.amount, 0);
+    const aggregateResult = await db.member.aggregate({
+      where: { gymId: activeGymId },
+      _sum: {
+        totalPayment: true,
+        totalCash: true,
+        totalUpi: true,
+        pendingPayment: true,
+        refundAmount: true,
+      },
+    });
+    const sum = aggregateResult._sum;
 
-    const monthlyExp = await db.expense.findMany({ where: { gymId: activeGymId, expenseDate: { gte: monthStart, lt: monthEnd } } });
-    const monthlyExpenseTotal = monthlyExp.reduce((s, e) => s + e.cashAmount + e.upiAmount, 0);
-    const monthlyCashExpense = monthlyExp.reduce((s, e) => s + e.cashAmount, 0);
-    const monthlyUpiExpense = monthlyExp.reduce((s, e) => s + e.upiAmount, 0);
+    const totalRevenue = sum.totalPayment || 0;
+    const totalCash = sum.totalCash || 0;
+    const totalUpi = sum.totalUpi || 0;
+    const totalPending = sum.pendingPayment || 0;
+    const totalRefund = sum.refundAmount || 0;
+
+    // Monthly transaction aggregations
+    const monthlyTxnAggregate = await db.transaction.aggregate({
+      where: { gymId: activeGymId, paymentDate: { gte: monthStart, lt: monthEnd } },
+      _sum: { amount: true },
+    });
+    const monthlyRevenue = monthlyTxnAggregate._sum.amount || 0;
+
+    const monthlyCashAggregate = await db.transaction.aggregate({
+      where: { gymId: activeGymId, paymentDate: { gte: monthStart, lt: monthEnd }, paymentMode: 'Cash' },
+      _sum: { amount: true },
+    });
+    const monthlyCash = monthlyCashAggregate._sum.amount || 0;
+
+    const monthlyUpiAggregate = await db.transaction.aggregate({
+      where: { gymId: activeGymId, paymentDate: { gte: monthStart, lt: monthEnd }, paymentMode: 'UPI' },
+      _sum: { amount: true },
+    });
+    const monthlyUpi = monthlyUpiAggregate._sum.amount || 0;
+
+    // Monthly expense aggregations
+    const monthlyExpAggregate = await db.expense.aggregate({
+      where: { gymId: activeGymId, expenseDate: { gte: monthStart, lt: monthEnd } },
+      _sum: { cashAmount: true, upiAmount: true },
+    });
+    const monthlyExpenseTotal = (monthlyExpAggregate._sum.cashAmount || 0) + (monthlyExpAggregate._sum.upiAmount || 0);
+    const monthlyCashExpense = monthlyExpAggregate._sum.cashAmount || 0;
+    const monthlyUpiExpense = monthlyExpAggregate._sum.upiAmount || 0;
 
     const settings = await db.settings.findUnique({ where: { gymId: activeGymId } });
     const openingCash = settings?.openingCashBalance || 0;
@@ -65,17 +111,28 @@ export async function GET(request: NextRequest) {
     const finalUpiBalance = openingUpi + totalUpi - monthlyUpiExpense;
     const finalBalance = finalCashBalance + finalUpiBalance;
 
+    // Revenue by month — use aggregations instead of loading all records
     const revenueByMonth = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const dEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
       const label = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      const mTxns = await db.transaction.findMany({ where: { gymId: activeGymId, paymentDate: { gte: d, lt: dEnd } } });
-      const mExps = await db.expense.findMany({ where: { gymId: activeGymId, expenseDate: { gte: d, lt: dEnd } } });
+
+      const [txnAgg, expAgg] = await Promise.all([
+        db.transaction.aggregate({
+          where: { gymId: activeGymId, paymentDate: { gte: d, lt: dEnd } },
+          _sum: { amount: true },
+        }),
+        db.expense.aggregate({
+          where: { gymId: activeGymId, expenseDate: { gte: d, lt: dEnd } },
+          _sum: { cashAmount: true, upiAmount: true },
+        }),
+      ]);
+
       revenueByMonth.push({
         month: label,
-        revenue: mTxns.reduce((s, t) => s + t.amount, 0),
-        expenses: mExps.reduce((s, e) => s + e.cashAmount + e.upiAmount, 0),
+        revenue: txnAgg._sum.amount || 0,
+        expenses: (expAgg._sum.cashAmount || 0) + (expAgg._sum.upiAmount || 0),
       });
     }
 

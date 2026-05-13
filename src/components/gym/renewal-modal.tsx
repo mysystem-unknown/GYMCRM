@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 const planOptions = [
@@ -42,6 +42,15 @@ export function RenewalModal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const amountNum = parseFloat(amount) || 0;
+    if (amountNum <= 0) {
+      toast.error('Amount must be greater than 0');
+      return;
+    }
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
+      return;
+    }
     setLoading(true);
     try {
       await fetchAPI('/api/transactions', {
@@ -50,7 +59,7 @@ export function RenewalModal() {
           gymId: activeGymId,
           memberId: selectedMember.id,
           paymentMode,
-          amount: parseFloat(amount) || 0,
+          amount: amountNum,
           plan,
           duration: selectedPlan?.months || 1,
           paymentDate: (renewalDate || new Date()).toISOString(),
@@ -58,8 +67,8 @@ export function RenewalModal() {
       });
       toast.success(`${selectedMember.name}'s membership renewed until ${format(newExpiry, 'dd MMM yyyy')}!`);
       setShowRenewalModal(false);
-    } catch {
-      toast.error('Renewal failed');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Renewal failed');
     } finally {
       setLoading(false);
     }
@@ -131,7 +140,7 @@ export function RenewalModal() {
               <Label>Renewal Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {renewalDate ? format(renewalDate, 'dd MMM yyyy') : 'Pick a date'}
                   </Button>
@@ -153,7 +162,8 @@ export function RenewalModal() {
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowRenewalModal(false)}>Cancel</Button>
             <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700">
-              {loading ? 'Renewing...' : 'Renew Membership'}
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Renew Membership
             </Button>
           </DialogFooter>
         </form>

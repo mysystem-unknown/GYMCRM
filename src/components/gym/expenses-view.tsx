@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate } from '@/lib/api';
 import type { Expense } from '@/types/gym';
@@ -16,23 +19,48 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import { Plus, Trash2, CalendarIcon, Receipt, TrendingDown, DollarSign, CreditCard } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, Receipt, TrendingDown, DollarSign, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 const categories = ['Rent', 'Salary', 'Electricity', 'Cleaning', 'Equipment', 'Internet', 'Breakfast', 'Maintenance', 'Other'];
 
+const expenseSchema = z.object({
+  category: z.string().min(1, 'Category is required'),
+  note: z.string().optional().default(''),
+  cashAmount: z.coerce.number().min(0, 'Cash amount must be non-negative'),
+  upiAmount: z.coerce.number().min(0, 'UPI amount must be non-negative'),
+  expenseDate: z.date({ required_error: 'Date is required' }),
+}).refine(data => data.cashAmount > 0 || data.upiAmount > 0, {
+  message: 'At least one amount (cash or UPI) must be greater than 0',
+  path: ['cashAmount'],
+});
+
+type ExpenseFormValues = z.infer<typeof expenseSchema>;
+
 export function ExpensesView() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState('');
-  const [note, setNote] = useState('');
-  const [cashAmount, setCashAmount] = useState('');
-  const [upiAmount, setUpiAmount] = useState('');
-  const [expenseDate, setExpenseDate] = useState<Date | undefined>(undefined);
-  const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const activeGymId = useGymStore((s) => s.activeGymId);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<ExpenseFormValues>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      category: '',
+      note: '',
+      cashAmount: 0,
+      upiAmount: 0,
+      expenseDate: new Date(),
+    },
+  });
 
   const loadExpenses = useCallback(async () => {
     setLoading(true);
@@ -43,7 +71,7 @@ export function ExpensesView() {
       const result = await fetchAPI<{ expenses: Expense[] }>(`/api/expenses?${params}`);
       setExpenses(result.expenses);
     } catch (err) {
-      toast.error('Failed to load expenses');
+      toast.error(err instanceof Error ? err.message : 'Failed to load expenses');
     } finally {
       setLoading(false);
     }
@@ -57,31 +85,30 @@ export function ExpensesView() {
   const totalUpi = expenses.reduce((s, e) => s + e.upiAmount, 0);
   const totalAll = totalCash + totalUpi;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!category) { toast.error('Category is required'); return; }
+  const onSubmit = async (data: ExpenseFormValues) => {
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
+      return;
+    }
     setSubmitting(true);
     try {
       await fetchAPI('/api/expenses', {
         method: 'POST',
         body: JSON.stringify({
           gymId: activeGymId,
-          category,
-          note,
-          cashAmount: parseFloat(cashAmount) || 0,
-          upiAmount: parseFloat(upiAmount) || 0,
-          expenseDate: (expenseDate || new Date()).toISOString(),
+          category: data.category,
+          note: data.note || '',
+          cashAmount: data.cashAmount,
+          upiAmount: data.upiAmount,
+          expenseDate: data.expenseDate.toISOString(),
         }),
       });
       toast.success('Expense added');
-      setCategory('');
-      setNote('');
-      setCashAmount('');
-      setUpiAmount('');
+      reset({ category: '', note: '', cashAmount: 0, upiAmount: 0, expenseDate: new Date() });
       setShowForm(false);
       loadExpenses();
-    } catch {
-      toast.error('Failed to add expense');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add expense');
     } finally {
       setSubmitting(false);
     }
@@ -93,8 +120,8 @@ export function ExpensesView() {
       await fetchAPI(`/api/expenses?id=${id}`, { method: 'DELETE' });
       toast.success('Expense deleted');
       loadExpenses();
-    } catch {
-      toast.error('Failed to delete expense');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete expense');
     }
   };
 
@@ -159,49 +186,74 @@ export function ExpensesView() {
             <CardTitle className="text-base">Add New Expense</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-xs">Category *</Label>
+                  <Controller
+                    control={control}
+                    name="category"
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.category && <p className="text-xs text-red-500">{errors.category.message}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Note</Label>
-                  <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" />
+                  <Input {...register('note')} placeholder="Optional note" />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start text-left font-normal text-sm h-9">
-                        <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                        {expenseDate ? format(expenseDate, 'dd MMM yyyy') : 'Pick a date'}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={expenseDate} onSelect={(d) => d && setExpenseDate(d)} />
-                    </PopoverContent>
-                  </Popover>
+                  <Label className="text-xs">Date *</Label>
+                  <Controller
+                    control={control}
+                    name="expenseDate"
+                    render={({ field }) => (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button type="button" variant="outline" className="w-full justify-start text-left font-normal text-sm h-9">
+                            <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                            {field.value ? format(field.value, 'dd MMM yyyy') : 'Pick a date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(d) => d && field.onChange(d)}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  />
+                  {errors.expenseDate && <p className="text-xs text-red-500">{errors.expenseDate.message}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Cash Amount (₹)</Label>
-                  <Input type="number" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} placeholder="0" />
+                  <Input type="number" {...register('cashAmount', { valueAsNumber: true })} placeholder="0" />
+                  {errors.cashAmount && <p className="text-xs text-red-500">{errors.cashAmount.message}</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">UPI Amount (₹)</Label>
-                  <Input type="number" value={upiAmount} onChange={(e) => setUpiAmount(e.target.value)} placeholder="0" />
+                  <Input type="number" {...register('upiAmount', { valueAsNumber: true })} placeholder="0" />
+                  {errors.upiAmount && <p className="text-xs text-red-500">{errors.upiAmount.message}</p>}
                 </div>
               </div>
+              {/* Show refine error if at least one amount > 0 */}
+              {errors.cashAmount?.message?.includes('At least one') && (
+                <p className="text-xs text-red-500">{errors.cashAmount.message}</p>
+              )}
               <div className="flex gap-2">
                 <Button type="submit" disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
-                  {submitting ? 'Adding...' : 'Add Expense'}
+                  {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Add Expense
                 </Button>
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
               </div>

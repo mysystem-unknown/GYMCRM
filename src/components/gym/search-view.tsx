@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
 import type { Member } from '@/types/gym';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, User, Phone, Calendar, CreditCard } from 'lucide-react';
+import { toast } from 'sonner';
 
 export function SearchView() {
   const [query, setQuery] = useState('');
@@ -17,24 +18,30 @@ export function SearchView() {
   const [searched, setSearched] = useState(false);
   const activeGymId = useGymStore((s) => s.activeGymId);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
+  const setActiveView = useGymStore((s) => s.setActiveView);
 
-  const handleSearch = useCallback(async () => {
+  const handleSearch = async () => {
     if (!query.trim()) return;
+    if (!activeGymId) {
+      toast.error('No gym selected. Please select a gym first.');
+      return;
+    }
     setSearching(true);
     setSearched(true);
     try {
       const params = new URLSearchParams();
-      if (activeGymId) params.set('gymId', activeGymId);
+      params.set('gymId', activeGymId);
       params.set('search', encodeURIComponent(query.trim()));
       params.set('limit', '50');
       const result = await fetchAPI<{ members: Member[] }>(`/api/members?${params}`);
       setResults(result.members);
-    } catch {
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Search failed');
       setResults([]);
     } finally {
       setSearching(false);
     }
-  }, [query, activeGymId]);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -46,10 +53,11 @@ export function SearchView() {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [query, handleSearch]);
+  }, [query, activeGymId]);
 
   const handleSelect = (member: Member) => {
     setSelectedMember(member);
+    setActiveView('members');
   };
 
   return (

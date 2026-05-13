@@ -61,7 +61,7 @@ export function MembersView() {
       setMembers(result.members);
       setTotal(result.total);
     } catch (err) {
-      toast.error('Failed to load members');
+      toast.error(err instanceof Error ? err.message : 'Failed to load members');
     } finally {
       setLoading(false);
     }
@@ -77,8 +77,8 @@ export function MembersView() {
       await fetchAPI(`/api/members?id=${id}`, { method: 'DELETE' });
       toast.success(`Member "${name}" deleted`);
       loadMembers();
-    } catch {
-      toast.error('Failed to delete member');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete member');
     }
   };
 
@@ -116,8 +116,8 @@ export function MembersView() {
       }));
       exportToCSV(exportData, 'gym-members.csv');
       toast.success(`${data.length} members exported`);
-    } catch {
-      toast.error('Failed to export CSV');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to export CSV');
     }
   };
 

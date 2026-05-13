@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     if (error) return error;
     if (!activeGymId) return NextResponse.json({ expenses: [], total: 0, page: 1, totalPages: 0 });
 
-    const where: any = { gymId: activeGymId };
+    const where: Record<string, unknown> = { gymId: activeGymId };
     if (category) where.category = category;
 
     const [expenses, total] = await Promise.all([
@@ -41,19 +41,32 @@ export async function POST(request: NextRequest) {
 
     const { error, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym selected. Please select a gym first.' }, { status: 400 });
 
     if (!category || !category.trim()) {
       return NextResponse.json({ error: 'Expense category is required' }, { status: 400 });
     }
 
+    const cash = typeof cashAmount === 'number' ? cashAmount : 0;
+    const upi = typeof upiAmount === 'number' ? upiAmount : 0;
+
+    if (cash < 0) {
+      return NextResponse.json({ error: 'Cash amount cannot be negative' }, { status: 400 });
+    }
+    if (upi < 0) {
+      return NextResponse.json({ error: 'UPI amount cannot be negative' }, { status: 400 });
+    }
+    if (cash === 0 && upi === 0) {
+      return NextResponse.json({ error: 'At least one amount (cash or UPI) must be greater than 0' }, { status: 400 });
+    }
+
     const expense = await db.expense.create({
       data: {
         gymId: activeGymId,
-        category: category || 'Other',
-        note: note || '',
-        cashAmount: cashAmount || 0,
-        upiAmount: upiAmount || 0,
+        category: category.trim(),
+        note: (note || '').trim(),
+        cashAmount: cash,
+        upiAmount: upi,
         expenseDate: expenseDate ? new Date(expenseDate) : new Date(),
       },
     });
@@ -74,6 +87,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('DELETE expense error:', error);
+    if (error instanceof Error && error.message.includes('Record to delete not found')) {
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: 'Failed to delete expense' }, { status: 500 });
   }
 }

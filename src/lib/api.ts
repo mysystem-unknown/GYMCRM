@@ -1,4 +1,4 @@
-export async function fetchAPI<T = any>(url: string, options?: RequestInit): Promise<T> {
+export async function fetchAPI<T = Record<string, unknown>>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
     headers: { 'Content-Type': 'application/json', ...options?.headers },
@@ -8,6 +8,19 @@ export async function fetchAPI<T = any>(url: string, options?: RequestInit): Pro
     throw new Error(err.error || 'API error');
   }
   return res.json();
+}
+
+/** Like fetchAPI but always throws the raw error string for toast display */
+export async function fetchAPIWithError(url: string, options?: RequestInit): Promise<Record<string, unknown>> {
+  const res = await fetch(url, {
+    ...options,
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+  });
+  const data = await res.json().catch(() => ({ error: 'Request failed' }));
+  if (!res.ok) {
+    throw new Error(data.error || 'API error');
+  }
+  return data;
 }
 
 export function formatCurrency(amount: number): string {
