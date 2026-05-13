@@ -42,9 +42,15 @@ export async function POST(request: NextRequest) {
 
     const { error, user, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
 
-    // Check renewal permission
+    if (!memberId) {
+      return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
+    }
+
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: 'Payment amount must be greater than 0' }, { status: 400 });
+    }
     if (!canRenewMember(user)) {
       return NextResponse.json({ error: 'You do not have permission to renew memberships' }, { status: 403 });
     }

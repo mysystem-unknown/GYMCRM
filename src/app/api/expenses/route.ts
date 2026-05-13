@@ -41,7 +41,11 @@ export async function POST(request: NextRequest) {
 
     const { error, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
+
+    if (!category || !category.trim()) {
+      return NextResponse.json({ error: 'Expense category is required' }, { status: 400 });
+    }
 
     const expense = await db.expense.create({
       data: {

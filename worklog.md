@@ -67,3 +67,25 @@ Stage Summary:
 - Hydration error: FIXED
 - Signin flow: FIXED (credentials auth + page reload on success)
 - All clean: no console errors, no hydration warnings
+---
+Task ID: 2
+Agent: Main
+Task: Fix gym creation, member creation, and all form/API bugs
+
+Work Log:
+- Found CRITICAL bug: gym-management-view.tsx sends {name, ownerEmail, ownerPassword, ownerName} but api/gyms/route.ts expects {gymName, adminEmail, adminPassword, adminName} — field names completely mismatched
+- Fixed gym-management-view.tsx: changed JSON body keys to match server (gymName, gymAddress, gymPhone, adminName, adminEmail, adminPassword)
+- Added server-side validation to api/gyms/route.ts: email format check, password minimum 6 chars
+- Added server-side validation to api/members/route.ts POST: name required, phone required, negative amount check
+- Added server-side validation to api/members/route.ts PUT: id required, name required
+- Added server-side validation to api/expenses/route.ts POST: category required
+- Added server-side validation to api/transactions/route.ts POST: memberId required, amount must be > 0
+- Improved error messages from generic "No gym selected" to descriptive "No gym assigned to your account. Please contact the super admin."
+- Verified all fixes via API testing: gym creation returns 201, member creation returns 201
+- Build passes cleanly with no errors
+
+Stage Summary:
+- Files modified: gym-management-view.tsx, api/gyms/route.ts, api/members/route.ts, api/expenses/route.ts, api/transactions/route.ts
+- Root cause of gym creation failure: client-server field name mismatch
+- Root cause of member creation: missing server-side validation + poor error messages for super_admin without gym
+- All APIs now have proper server-side validation matching client-side checks

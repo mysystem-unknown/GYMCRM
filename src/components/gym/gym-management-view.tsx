@@ -66,12 +66,12 @@ export function GymManagementView() {
       await fetchAPI('/api/gyms', {
         method: 'POST',
         body: JSON.stringify({
-          name: gymName.trim(),
-          address: gymAddress.trim(),
-          phone: gymPhone.trim(),
-          ownerName: ownerName.trim(),
-          ownerEmail: ownerEmail.trim().toLowerCase(),
-          ownerPassword,
+          gymName: gymName.trim(),
+          gymAddress: gymAddress.trim(),
+          gymPhone: gymPhone.trim(),
+          adminName: ownerName.trim(),
+          adminEmail: ownerEmail.trim().toLowerCase(),
+          adminPassword,
         }),
       });
       toast.success(`Gym "${gymName}" created successfully!`);

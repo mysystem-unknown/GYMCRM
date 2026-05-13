@@ -41,6 +41,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Gym name, admin email, and password are required' }, { status: 400 });
     }
 
+    if (!adminEmail.includes('@') || !adminEmail.includes('.')) {
+      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    }
+
+    if (adminPassword.length < 6) {
+      return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+    }
+
     // Auto-generate slug from gymName if not provided
     const slug = gymSlug || gymName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 

@@ -57,7 +57,18 @@ export async function POST(request: NextRequest) {
 
     const { error, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
-    if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+    if (!activeGymId) return NextResponse.json({ error: 'No gym assigned to your account. Please contact the super admin.' }, { status: 400 });
+
+    // Server-side validation
+    if (!name || !name.trim()) {
+      return NextResponse.json({ error: 'Member name is required' }, { status: 400 });
+    }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      return NextResponse.json({ error: 'Phone number is required' }, { status: 400 });
+    }
+    if (amount < 0) {
+      return NextResponse.json({ error: 'Amount cannot be negative' }, { status: 400 });
+    }
 
     const lastMember = await db.member.findFirst({
       where: { gymId: activeGymId },
@@ -121,8 +132,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, ...data } = body;
-    const member = await db.member.update({ where: { id }, data });
+    const { id, name, ...data } = body;
+    if (!id) return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
+    if (!name || !name.trim()) return NextResponse.json({ error: 'Member name is required' }, { status: 400 });
+    const member = await db.member.update({ where: { id }, data: { name: name.trim(), ...data } });
     return NextResponse.json(member);
   } catch (error) {
     console.error('PUT member error:', error);
