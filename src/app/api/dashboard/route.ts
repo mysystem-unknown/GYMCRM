@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const finalBalance = finalCashBalance + finalUpiBalance;
 
     // Revenue by month — use aggregations instead of loading all records
-    const revenueByMonth = [];
+    const revenueByMonth: { month: string; revenue: number; expenses: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const dEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);

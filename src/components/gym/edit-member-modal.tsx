@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { editMemberSchema, type EditMemberFormValues } from '@/lib/schemas';
 import { fetchAPI } from '@/lib/api';
 import { useGymStore } from '@/store/gym-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -13,15 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-
-const editMemberSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(1, 'Phone is required'),
-  status: z.string().min(1, 'Status is required'),
-  notes: z.string().optional().default(''),
-});
-
-type EditMemberFormValues = z.infer<typeof editMemberSchema>;
 
 export function EditMemberModal() {
   const selectedMember = useGymStore((s) => s.selectedMember);

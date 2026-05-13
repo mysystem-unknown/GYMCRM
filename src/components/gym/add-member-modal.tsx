@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { addMemberSchema, type AddMemberFormValues } from '@/lib/schemas';
 import { fetchAPI } from '@/lib/api';
 import { useGymStore } from '@/store/gym-store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -23,17 +23,6 @@ const planOptions = [
   { label: '6 Months', months: 6, price: 4500 },
   { label: '1 Year', months: 12, price: 8000 },
 ];
-
-const addMemberSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  phone: z.string().min(10, 'Phone must be at least 10 characters'),
-  membershipPlan: z.string().min(1, 'Plan is required'),
-  paymentMode: z.string().min(1, 'Payment mode is required'),
-  amount: z.coerce.number().min(0, 'Amount must be non-negative'),
-  joinDate: z.date({ required_error: 'Join date is required' }),
-});
-
-type AddMemberFormValues = z.infer<typeof addMemberSchema>;
 
 export function AddMemberModal() {
   const [open, setOpen] = useState(true);

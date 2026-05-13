@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createGymSchema, type CreateGymFormValues } from '@/lib/schemas';
 import { fetchAPI } from '@/lib/api';
 import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,13 +37,22 @@ export function GymManagementView() {
   const setActiveGymId = useGymStore((s) => s.setActiveGymId);
   const setGymList = useGymStore((s) => s.setGymList);
 
-  // Create form
-  const [gymName, setGymName] = useState('');
-  const [gymAddress, setGymAddress] = useState('');
-  const [gymPhone, setGymPhone] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [ownerEmail, setOwnerEmail] = useState('');
-  const [ownerPassword, setOwnerPassword] = useState('');
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CreateGymFormValues>({
+    resolver: zodResolver(createGymSchema),
+    defaultValues: {
+      gymName: '',
+      gymPhone: '',
+      gymAddress: '',
+      adminName: '',
+      adminEmail: '',
+      adminPassword: '',
+    },
+  });
 
   useEffect(() => {
     loadGyms();
@@ -60,33 +72,23 @@ export function GymManagementView() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gymName.trim() || !ownerEmail.trim() || !ownerPassword.trim()) {
-      toast.error('Gym name, owner email, and password are required');
-      return;
-    }
+  const handleCreate = async (data: CreateGymFormValues) => {
     setCreating(true);
     try {
       const result = await fetchAPI<{ success: boolean; gym: { id: string; name: string } }>('/api/gyms', {
         method: 'POST',
         body: JSON.stringify({
-          gymName: gymName.trim(),
-          gymAddress: gymAddress.trim(),
-          gymPhone: gymPhone.trim(),
-          adminName: ownerName.trim(),
-          adminEmail: ownerEmail.trim().toLowerCase(),
-          adminPassword: ownerPassword,
+          gymName: data.gymName.trim(),
+          gymAddress: data.gymAddress.trim(),
+          gymPhone: data.gymPhone.trim(),
+          adminName: data.adminName.trim(),
+          adminEmail: data.adminEmail.trim().toLowerCase(),
+          adminPassword: data.adminPassword,
         }),
       });
-      toast.success(`Gym "${gymName}" created successfully!`);
+      toast.success(`Gym "${data.gymName}" created successfully!`);
       setShowCreate(false);
-      setGymName('');
-      setGymAddress('');
-      setGymPhone('');
-      setOwnerName('');
-      setOwnerEmail('');
-      setOwnerPassword('');
+      reset();
 
       // Auto-switch to the newly created gym
       if (result.gym?.id) {
@@ -222,36 +224,39 @@ export function GymManagementView() {
           <DialogHeader>
             <DialogTitle>Create New Gym</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleSubmit(handleCreate)} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Gym Name *</Label>
-                <Input value={gymName} onChange={(e) => setGymName(e.target.value)} placeholder="e.g., FitZone Gym" required />
+                <Input {...register('gymName')} placeholder="e.g., FitZone Gym" />
+                {errors.gymName && <p className="text-xs text-red-500">{errors.gymName.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
-                <Input value={gymPhone} onChange={(e) => setGymPhone(e.target.value)} placeholder="Gym phone number" />
+                <Input {...register('gymPhone')} placeholder="Gym phone number" />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Address</Label>
-              <Input value={gymAddress} onChange={(e) => setGymAddress(e.target.value)} placeholder="Gym address" />
+              <Input {...register('gymAddress')} placeholder="Gym address" />
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Gym Owner Details</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Owner Name</Label>
-                  <Input value={ownerName} onChange={(e) => setOwnerName(e.target.value)} placeholder="Owner name" />
+                  <Input {...register('adminName')} placeholder="Owner name" />
                 </div>
                 <div className="space-y-2">
                   <Label>Owner Email *</Label>
-                  <Input type="email" value={ownerEmail} onChange={(e) => setOwnerEmail(e.target.value)} placeholder="owner@email.com" required />
+                  <Input type="email" {...register('adminEmail')} placeholder="owner@email.com" />
+                  {errors.adminEmail && <p className="text-xs text-red-500">{errors.adminEmail.message}</p>}
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Owner Password *</Label>
-                <Input type="password" value={ownerPassword} onChange={(e) => setOwnerPassword(e.target.value)} placeholder="Min 6 characters" required minLength={6} />
+                <Input type="password" {...register('adminPassword')} placeholder="Min 6 characters" />
+                {errors.adminPassword && <p className="text-xs text-red-500">{errors.adminPassword.message}</p>}
               </div>
             </div>
             <DialogFooter>

@@ -145,3 +145,46 @@ Stage Summary:
 - Dashboard optimized: bulk status updates + Prisma aggregations instead of N+1
 - No `any` types in API routes (replaced with proper typed records)
 - Build passes, lint clean, dev server running
+---
+Task ID: 1
+Agent: full-stack-developer
+Task: Full MVP refactoring - centralized schemas + react-hook-form conversion
+
+Work Log:
+- Created /src/lib/schemas.ts with all centralized Zod schemas (addMember, editMember, renewal, expense, createGym, createStaff, settings)
+- Converted RenewalModal to react-hook-form + zod (replaced manual useState with useForm + Controller for Select/Calendar)
+- Converted GymManagement create dialog to react-hook-form + zod (replaced 6 useState variables with form state)
+- Converted StaffManagement create dialog to react-hook-form + zod (replaced 5 useState variables + Controller for Switch/role buttons)
+- Converted SettingsView form to react-hook-form + zod (replaced openingCash/openingUpi useState with form state)
+- Updated AddMemberModal to import addMemberSchema from @/lib/schemas (removed local duplicate)
+- Updated EditMemberModal to import editMemberSchema from @/lib/schemas (removed local duplicate)
+- Updated ExpensesView to import expenseSchema from @/lib/schemas (removed local duplicate)
+- Used z.number() instead of z.coerce.number() to fix zodResolver type compatibility with zod v4
+- Used z.date({ message: ... }) instead of z.date({ required_error: ... }) for zod v4 API compatibility
+- Ran prisma db push (already in sync) + prisma generate (success)
+- Ran TypeScript compilation check - 0 new errors introduced (5 pre-existing errors in unrelated files)
+
+Stage Summary:
+- All forms now use react-hook-form + zod with centralized schemas
+- No duplicate schema definitions across the codebase
+- Prisma DB is in sync
+- TypeScript compiles successfully (no new errors)
+---
+Task ID: 2
+Agent: Main
+Task: Fix remaining TypeScript errors and stabilize
+
+Work Log:
+- Fixed theme-provider.tsx: Changed props type from `{ children: ReactNode }` to `React.ComponentProps<typeof NextThemesProvider>` so it accepts all NextThemes props (attribute, defaultTheme, enableSystem, etc.)
+- Fixed auth-gate.tsx: Removed invalid `onLogin` prop from `<LoginView />` (component doesn't accept props, handles its own login flow)
+- Fixed forgot-password-view.tsx: Added proper generic type `<{ resetLink?: string; message?: string; token?: string }>` to fetchAPI call
+- Fixed dashboard/route.ts: Added explicit type annotation to `revenueByMonth` array to fix TS2345
+- Verified: npx tsc --noEmit shows 0 errors in src/ (only pre-existing error in unrelated skills/ directory)
+
+Stage Summary:
+- 4 TypeScript errors fixed
+- All src/ files now compile cleanly
+- Theme provider correctly typed
+- Auth gate no longer passes invalid props
+- Dashboard route properly typed
+- All validation error messages display correctly via standard pattern

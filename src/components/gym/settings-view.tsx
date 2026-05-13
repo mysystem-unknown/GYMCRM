@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { settingsSchema, type SettingsFormValues } from '@/lib/schemas';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI } from '@/lib/api';
 import { exportToCSV } from '@/lib/export';
@@ -15,12 +18,23 @@ import { Settings, Save, Banknote, Smartphone, Download, Database } from 'lucide
 import { toast } from 'sonner';
 
 export function SettingsView() {
-  const [openingCash, setOpeningCash] = useState('');
-  const [openingUpi, setUpiUpi] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
   const activeGymId = useGymStore((s) => s.activeGymId);
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<SettingsFormValues>({
+    resolver: zodResolver(settingsSchema),
+    defaultValues: {
+      openingCashBalance: 0,
+      openingUpiBalance: 0,
+    },
+  });
 
   useEffect(() => {
     loadSettings();
@@ -31,8 +45,10 @@ export function SettingsView() {
       const params = new URLSearchParams();
       if (activeGymId) params.set('gymId', activeGymId);
       const data = await fetchAPI<{ openingCashBalance: number; openingUpiBalance: number }>(`/api/settings?${params}`);
-      setOpeningCash(String(data.openingCashBalance));
-      setUpiUpi(String(data.openingUpiBalance));
+      reset({
+        openingCashBalance: data.openingCashBalance,
+        openingUpiBalance: data.openingUpiBalance,
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load settings');
     } finally {
@@ -40,16 +56,15 @@ export function SettingsView() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (data: SettingsFormValues) => {
     setSaving(true);
     try {
       await fetchAPI('/api/settings', {
         method: 'PUT',
         body: JSON.stringify({
           gymId: activeGymId,
-          openingCashBalance: parseFloat(openingCash) || 0,
-          openingUpiBalance: parseFloat(openingUpi) || 0,
+          openingCashBalance: data.openingCashBalance,
+          openingUpiBalance: data.openingUpiBalance,
         }),
       });
       toast.success('Settings saved');
@@ -138,7 +153,7 @@ export function SettingsView() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSave} className="space-y-6">
+            <form onSubmit={handleSubmit(handleSave)} className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2">
@@ -147,10 +162,10 @@ export function SettingsView() {
                   </Label>
                   <Input
                     type="number"
-                    value={openingCash}
-                    onChange={(e) => setOpeningCash(e.target.value)}
+                    {...register('openingCashBalance', { valueAsNumber: true })}
                     placeholder="0"
                   />
+                  {errors.openingCashBalance && <p className="text-xs text-red-500">{errors.openingCashBalance.message}</p>}
                   <p className="text-xs text-muted-foreground">
                     The initial cash balance before any transactions
                   </p>
@@ -162,10 +177,10 @@ export function SettingsView() {
                   </Label>
                   <Input
                     type="number"
-                    value={openingUpi}
-                    onChange={(e) => setUpiUpi(e.target.value)}
+                    {...register('openingUpiBalance', { valueAsNumber: true })}
                     placeholder="0"
                   />
+                  {errors.openingUpiBalance && <p className="text-xs text-red-500">{errors.openingUpiBalance.message}</p>}
                   <p className="text-xs text-muted-foreground">
                     The initial UPI balance before any transactions
                   </p>

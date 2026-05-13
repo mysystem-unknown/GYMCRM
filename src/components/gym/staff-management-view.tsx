@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createStaffSchema, type CreateStaffFormValues } from '@/lib/schemas';
 import { fetchAPI } from '@/lib/api';
+import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +16,6 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Trash2, UserCog, Shield, Users, Loader2, Mail, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
-import { useGymStore } from '@/store/gym-store';
 
 interface StaffUser {
   id: string;
@@ -34,12 +37,27 @@ export function StaffManagementView() {
   const user = useGymStore((s) => s.user);
   const activeGymId = useGymStore((s) => s.activeGymId);
 
-  // Create form
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('staff');
-  const [newCanRenew, setNewCanRenew] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateStaffFormValues>({
+    resolver: zodResolver(createStaffSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      password: '',
+      role: 'staff',
+      canRenewMemberships: false,
+    },
+  });
+
+  const newRole = watch('role');
+  const newCanRenew = watch('canRenewMemberships');
 
   useEffect(() => {
     loadUsers();
@@ -59,12 +77,7 @@ export function StaffManagementView() {
     }
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEmail.trim() || !newPassword.trim()) {
-      toast.error('Email and password are required');
-      return;
-    }
+  const handleCreate = async (data: CreateStaffFormValues) => {
     if (!activeGymId) {
       toast.error('No gym selected. Please select a gym first.');
       return;
@@ -74,21 +87,17 @@ export function StaffManagementView() {
       await fetchAPI('/api/users', {
         method: 'POST',
         body: JSON.stringify({
-          email: newEmail.trim().toLowerCase(),
-          name: newName.trim(),
-          password: newPassword,
-          role: newRole,
+          email: data.email.trim().toLowerCase(),
+          name: data.name.trim(),
+          password: data.password,
+          role: data.role,
           gymId: activeGymId,
-          canRenewMemberships: newCanRenew,
+          canRenewMemberships: data.canRenewMemberships,
         }),
       });
-      toast.success(`Staff "${newEmail}" created successfully!`);
+      toast.success(`Staff "${data.email}" created successfully!`);
       setShowCreate(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPassword('');
-      setNewRole('staff');
-      setNewCanRenew(false);
+      reset();
       loadUsers();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create staff');
@@ -284,27 +293,29 @@ export function StaffManagementView() {
           <DialogHeader>
             <DialogTitle>Create Staff Account</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleSubmit(handleCreate)} className="space-y-4">
             <div className="space-y-2">
               <Label>Full Name</Label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Staff name" />
+              <Input {...register('name')} placeholder="Staff name" />
             </div>
             <div className="space-y-2">
               <Label>Email *</Label>
-              <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="staff@email.com" required />
+              <Input type="email" {...register('email')} placeholder="staff@email.com" />
+              {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
             </div>
             <div className="space-y-2">
               <Label>Password *</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min 6 characters" required minLength={6} />
+              <Input type="password" {...register('password')} placeholder="Min 6 characters" />
+              {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
             </div>
             {isSuperAdmin && (
               <div className="space-y-2">
                 <Label>Role</Label>
                 <div className="flex gap-2">
-                  <Button type="button" variant={newRole === 'staff' ? 'default' : 'outline'} size="sm" onClick={() => setNewRole('staff')} className={newRole === 'staff' ? 'bg-emerald-600' : ''}>
+                  <Button type="button" variant={newRole === 'staff' ? 'default' : 'outline'} size="sm" onClick={() => setValue('role', 'staff')} className={newRole === 'staff' ? 'bg-emerald-600' : ''}>
                     Staff
                   </Button>
-                  <Button type="button" variant={newRole === 'admin' ? 'default' : 'outline'} size="sm" onClick={() => setNewRole('admin')} className={newRole === 'admin' ? 'bg-emerald-600' : ''}>
+                  <Button type="button" variant={newRole === 'admin' ? 'default' : 'outline'} size="sm" onClick={() => setValue('role', 'admin')} className={newRole === 'admin' ? 'bg-emerald-600' : ''}>
                     Gym Owner
                   </Button>
                 </div>
@@ -315,7 +326,13 @@ export function StaffManagementView() {
                 <Label htmlFor="new-can-renew" className="text-sm font-medium">Allow Membership Renewal</Label>
                 <p className="text-xs text-muted-foreground">Staff can renew member plans</p>
               </div>
-              <Switch id="new-can-renew" checked={newCanRenew} onCheckedChange={setNewCanRenew} />
+              <Controller
+                control={control}
+                name="canRenewMemberships"
+                render={({ field }) => (
+                  <Switch id="new-can-renew" checked={field.value} onCheckedChange={field.onChange} />
+                )}
+              />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>

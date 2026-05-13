@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { expenseSchema, type ExpenseFormValues } from '@/lib/schemas';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate } from '@/lib/api';
 import type { Expense } from '@/types/gym';
@@ -24,19 +24,6 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 const categories = ['Rent', 'Salary', 'Electricity', 'Cleaning', 'Equipment', 'Internet', 'Breakfast', 'Maintenance', 'Other'];
-
-const expenseSchema = z.object({
-  category: z.string().min(1, 'Category is required'),
-  note: z.string().optional().default(''),
-  cashAmount: z.coerce.number().min(0, 'Cash amount must be non-negative'),
-  upiAmount: z.coerce.number().min(0, 'UPI amount must be non-negative'),
-  expenseDate: z.date({ required_error: 'Date is required' }),
-}).refine(data => data.cashAmount > 0 || data.upiAmount > 0, {
-  message: 'At least one amount (cash or UPI) must be greater than 0',
-  path: ['cashAmount'],
-});
-
-type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
 export function ExpensesView() {
   const [expenses, setExpenses] = useState<Expense[]>([]);

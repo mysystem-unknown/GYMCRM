@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { renewalSchema, type RenewalFormValues } from '@/lib/schemas';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -25,11 +28,28 @@ export function RenewalModal() {
   const selectedMember = useGymStore((s) => s.selectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
   const activeGymId = useGymStore((s) => s.activeGymId);
-  const [plan, setPlan] = useState('1 Month');
-  const [paymentMode, setPaymentMode] = useState('UPI');
-  const [amount, setAmount] = useState('1500');
-  const [renewalDate, setRenewalDate] = useState<Date | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<RenewalFormValues>({
+    resolver: zodResolver(renewalSchema),
+    defaultValues: {
+      membershipPlan: '1 Month',
+      paymentMode: 'UPI',
+      amount: 1500,
+      renewalDate: undefined,
+    },
+  });
+
+  const plan = watch('membershipPlan');
+  const amount = watch('amount');
+  const renewalDate = watch('renewalDate');
 
   if (!selectedMember) return null;
 
@@ -40,13 +60,7 @@ export function RenewalModal() {
   const newExpiry = new Date(baseDate);
   newExpiry.setMonth(newExpiry.getMonth() + (selectedPlan?.months || 1));
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountNum = parseFloat(amount) || 0;
-    if (amountNum <= 0) {
-      toast.error('Amount must be greater than 0');
-      return;
-    }
+  const onSubmit = async (data: RenewalFormValues) => {
     if (!activeGymId) {
       toast.error('No gym selected. Please select a gym first.');
       return;
@@ -58,11 +72,11 @@ export function RenewalModal() {
         body: JSON.stringify({
           gymId: activeGymId,
           memberId: selectedMember.id,
-          paymentMode,
-          amount: amountNum,
-          plan,
+          paymentMode: data.paymentMode,
+          amount: data.amount,
+          plan: data.membershipPlan,
           duration: selectedPlan?.months || 1,
-          paymentDate: (renewalDate || new Date()).toISOString(),
+          paymentDate: (data.renewalDate || new Date()).toISOString(),
         }),
       });
       toast.success(`${selectedMember.name}'s membership renewed until ${format(newExpiry, 'dd MMM yyyy')}!`);
@@ -75,9 +89,9 @@ export function RenewalModal() {
   };
 
   const handlePlanChange = (val: string) => {
-    setPlan(val);
+    setValue('membershipPlan', val);
     const p = planOptions.find((o) => o.label === val);
-    if (p) setAmount(String(p.price));
+    if (p) setValue('amount', p.price);
   };
 
   return (
@@ -107,48 +121,70 @@ export function RenewalModal() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>New Plan</Label>
-              <Select value={plan} onValueChange={handlePlanChange}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {planOptions.map((p) => (
-                    <SelectItem key={p.label} value={p.label}>{p.label} - ₹{p.price}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="membershipPlan"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={handlePlanChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {planOptions.map((p) => (
+                        <SelectItem key={p.label} value={p.label}>{p.label} - ₹{p.price}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.membershipPlan && <p className="text-xs text-red-500">{errors.membershipPlan.message}</p>}
             </div>
             <div className="space-y-2">
               <Label>Payment Mode</Label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Cash">💵 Cash</SelectItem>
-                  <SelectItem value="UPI">📱 UPI</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                control={control}
+                name="paymentMode"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cash">💵 Cash</SelectItem>
+                      <SelectItem value="UPI">📱 UPI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.paymentMode && <p className="text-xs text-red-500">{errors.paymentMode.message}</p>}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Amount (₹)</Label>
-              <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Input type="number" {...register('amount', { valueAsNumber: true })} />
+              {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
             </div>
             <div className="space-y-2">
               <Label>Renewal Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {renewalDate ? format(renewalDate, 'dd MMM yyyy') : 'Pick a date'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar mode="single" selected={renewalDate} onSelect={(d) => d && setRenewalDate(d)} />
-                </PopoverContent>
-              </Popover>
+              <Controller
+                control={control}
+                name="renewalDate"
+                render={({ field }) => (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-start text-left font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {field.value ? format(field.value, 'dd MMM yyyy') : 'Pick a date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar mode="single" selected={field.value} onSelect={(d) => d && field.onChange(d)} />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
+              {errors.renewalDate && <p className="text-xs text-red-500">{errors.renewalDate.message}</p>}
             </div>
           </div>
 

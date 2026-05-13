@@ -74,6 +74,6 @@ export function AuthGate() {
   }
 
   const user = useGymStore.getState().user;
-  if (!user) return <LoginView onLogin={() => window.location.reload()} />;
+  if (!user) return <LoginView />;
   return <GymLayout user={user} />;
 }

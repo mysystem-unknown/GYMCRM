@@ -23,7 +23,7 @@ export function ForgotPasswordView({ onBack }: { onBack: () => void }) {
     }
     setLoading(true);
     try {
-      const result = await fetchAPI('/api/auth/forgot-password', {
+      const result = await fetchAPI<{ resetLink?: string; message?: string; token?: string }>('/api/auth/forgot-password', {
         method: 'POST',
         body: JSON.stringify({ email: email.trim().toLowerCase() }),
       });
@@ -31,7 +31,7 @@ export function ForgotPasswordView({ onBack }: { onBack: () => void }) {
       if (result.resetLink) {
         setResetLink(result.resetLink);
       }
-      toast.success(result.message);
+      toast.success(result.message || 'Reset token generated');
     } catch {
       toast.error('Something went wrong');
     } finally {
