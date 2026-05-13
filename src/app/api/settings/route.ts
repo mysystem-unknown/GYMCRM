@@ -31,9 +31,14 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { gymId: reqGymId, openingCashBalance, openingUpiBalance } = body;
 
-    const { error, activeGymId } = await requireGymAccess(reqGymId);
+    const { error, user, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
     if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+
+    // Staff cannot modify settings
+    if (user.role === 'staff') {
+      return NextResponse.json({ error: 'Staff cannot modify settings' }, { status: 403 });
+    }
 
     const settings = await db.settings.upsert({
       where: { gymId: activeGymId },

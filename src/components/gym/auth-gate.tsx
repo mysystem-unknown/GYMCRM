@@ -1,28 +1,15 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { LoginView } from './login-view';
 import { GymLayout } from './gym-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ResetPasswordView } from './reset-password-view';
-
-// Simple auth check without next-auth SessionProvider (avoids Turbopack Context issue)
-function useAuth() {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch('/api/auth/session')
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { setUser(data); setLoading(false); })
-      .catch(() => { setUser(null); setLoading(false); });
-  }, []);
-
-  return { user, loading, setUser };
-}
+import { useGymStore } from '@/store/gym-store';
 
 export function AuthGate() {
-  const { user, loading } = useAuth();
+  const setUser = useGymStore((s) => s.setUser);
+  const [ready, setReady] = useState(false);
   const [resetToken, setResetToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,11 +19,24 @@ export function AuthGate() {
     }
   }, []);
 
+  useEffect(() => {
+    fetch('/api/auth/session')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) setUser(data);
+        setReady(true);
+      })
+      .catch(() => {
+        setUser(null);
+        setReady(true);
+      });
+  }, [setUser]);
+
   if (resetToken) {
     return <ResetPasswordView token={resetToken} onBack={() => { window.location.search = ''; }} />;
   }
 
-  if (loading) {
+  if (!ready) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="space-y-4 text-center">
@@ -48,6 +48,7 @@ export function AuthGate() {
     );
   }
 
+  const user = useGymStore.getState().user;
   if (!user) return <LoginView onLogin={() => window.location.reload()} />;
   return <GymLayout user={user} />;
 }

@@ -1,38 +1,48 @@
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Build complete Gym Management CRM web application
+Agent: Main
+Task: Build complete multi-tenant Gym CRM SaaS platform with hierarchy-based access control
 
 Work Log:
-- Analyzed uploaded Excel file (Gym Management system.xlsx) - 5 sheets: Members, Expenses, Search, Accounts, Dashboard
-- Identified 12 sample members with various statuses and payment data
-- Initialized fullstack dev environment with Next.js 16
-- Created Prisma schema with 4 models: Settings, Member, Transaction, Expense
-- Pushed schema to SQLite database
-- Created 6 API routes: /api/seed, /api/members, /api/transactions, /api/expenses, /api/dashboard, /api/settings
-- Built complete frontend with 11 components:
-  - gym-layout.tsx (sidebar + navbar + routing)
-  - dashboard-view.tsx (stat cards + charts + recent transactions)
-  - members-view.tsx (searchable/filterable table with pagination)
-  - add-member-modal.tsx (new member form)
-  - renewal-modal.tsx (membership renewal with expiry calculation)
-  - edit-member-modal.tsx (edit member details)
-  - member-profile.tsx (full profile + transaction history)
-  - expenses-view.tsx (add/delete expenses with summary)
-  - search-view.tsx (real-time member search)
-  - settings-view.tsx (opening balances configuration)
-- Created Zustand store for state management
-- Added TypeScript types for all data models
-- Added utility functions (currency formatting, date formatting, CSV export)
-- Seeded database with 12 members and 2 expenses from Excel data
-- All APIs tested and working (200 responses)
-- Lint check passed with no errors
+- Analyzed existing codebase (20+ files from previous session)
+- Updated Prisma schema: removed unique constraint on User.gymId, added canRenewMemberships field, changed Gym-User relation from 1:1 to 1:many
+- Pushed DB schema with force-reset, seeded super admin (0110aryantiwari@gmail.com / Aryan@121)
+- Launched 2 parallel subagents for backend and frontend work
+
+Backend changes:
+- Created src/middleware.ts (pass-through, auth handled client-side)
+- Updated src/app/api/auth/[...nextauth]/route.ts (added canRenewMemberships to JWT/session)
+- Fixed src/app/api/auth/session/route.ts (correct import path, added canRenewMemberships/gymName/gymSlug)
+- Created src/app/api/auth/change-password/route.ts (current + new password verification)
+- Updated src/lib/auth.ts (AuthUser interface, requireOwnerOrAdmin, canRenewMember helper)
+- Deleted redundant src/lib/auth-helper.ts
+- Updated src/app/api/gyms/route.ts (users instead of owner, auto-generate slug, PATCH for toggle, _count)
+- Created src/app/api/users/route.ts (full CRUD: GET/POST/PATCH/DELETE for staff management)
+- Updated src/app/api/transactions/route.ts (added canRenewMember permission check)
+- Updated src/app/api/settings/route.ts (staff cannot modify settings)
+- Updated src/app/api/export/route.ts (added XLSX export with ?format=xlsx, 3 sheets)
+
+Frontend changes:
+- Updated src/store/gym-store.ts (AuthUser type with canRenewMemberships, staff-management view)
+- Updated src/components/gym/auth-gate.tsx (Zustand store integration, full user data)
+- Updated src/components/gym/gym-layout.tsx (role-based nav, Badge import, role badges, permission gates)
+- Updated src/components/gym/login-view.tsx (added Instagram contact link)
+- Created src/components/gym/staff-management-view.tsx (create staff, toggle renewal perms, activate/deactivate, reset password)
+- Updated src/components/gym/gym-management-view.tsx (users[0] instead of owner, suspend/activate toggle)
+- Updated src/components/gym/members-view.tsx (canManage/canRenew permission checks)
+- Updated src/components/gym/member-profile.tsx (renewal permission check)
+- Updated src/types/gym.ts (UserProfile interface)
+- Fixed src/app/layout.tsx (removed SessionProvider that caused React Context error in SSR)
+
+Cleanup:
+- Removed stale login-page.tsx and setup-page.tsx
+- ESLint: 0 errors
+- Dev server: compiles successfully, returns 200
 
 Stage Summary:
-- Complete Gym CRM application built and running on localhost:3000
-- Features: Dashboard analytics, Member management, Renewal system, Expenses tracking, Search, Settings
-- 12 sample members seeded from Excel data
-- Dark/light mode, responsive design, animations, loading skeletons, toast notifications
-- Charts: Revenue vs Expenses bar chart, Cash vs UPI pie chart
-- CSV export for members
-- Production-ready single-page application
+- Complete multi-tenant Gym CRM SaaS platform with 3-tier hierarchy (Super Admin > Gym Owner > Staff)
+- All auth flows working (login, session, forgot password, reset password, change password)
+- Staff permission system with renewal toggle
+- XLS export for backup
+- Role-based navigation and UI
+- Gym suspend/activate functionality

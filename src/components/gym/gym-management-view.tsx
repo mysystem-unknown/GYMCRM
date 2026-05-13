@@ -11,8 +11,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Trash2, Users, Building2, Loader2, Building, Receipt } from 'lucide-react';
 import { toast } from 'sonner';
-import { useSession } from 'next-auth/react';
-import { formatCurrency } from '@/lib/api';
 
 interface GymData {
   id: string;
@@ -22,8 +20,8 @@ interface GymData {
   plan: string;
   isActive: boolean;
   createdAt: string;
-  owner?: { id: string; email: string; name: string | null; role: string };
-  _count: { members: number; transactions: number; expenses: number };
+  users?: { id: string; email: string; name: string | null; role: string }[];
+  _count: { members: number; transactions: number; expenses: number; users: number };
 }
 
 export function GymManagementView() {
@@ -92,6 +90,21 @@ export function GymManagementView() {
     }
   };
 
+  const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    const action = currentStatus ? 'suspend' : 'activate';
+    if (!confirm(`${action === 'suspend' ? 'Suspend' : 'Activate'} this gym?`)) return;
+    try {
+      await fetchAPI('/api/gyms', {
+        method: 'PATCH',
+        body: JSON.stringify({ id, isActive: !currentStatus }),
+      });
+      toast.success(`Gym ${action}d successfully`);
+      loadGyms();
+    } catch {
+      toast.error(`Failed to ${action} gym`);
+    }
+  };
+
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Delete gym "${name}"? This will remove ALL data including members, transactions, and expenses. This cannot be undone.`)) return;
     setDeleting(id);
@@ -155,10 +168,10 @@ export function GymManagementView() {
                   <div className="flex items-center gap-2 text-sm">
                     <Users className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-muted-foreground">Owner:</span>
-                    <span className="font-medium">{gym.owner?.name || gym.owner?.email || 'Unassigned'}</span>
+                    <span className="font-medium">{gym.users?.[0]?.name || gym.users?.[0]?.email || 'Unassigned'}</span>
                   </div>
-                  {gym.owner?.email && (
-                    <p className="text-xs text-muted-foreground ml-5.5">{gym.owner.email}</p>
+                  {gym.users?.[0]?.email && (
+                    <p className="text-xs text-muted-foreground ml-5.5">{gym.users[0].email}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">
@@ -166,7 +179,15 @@ export function GymManagementView() {
                   <span className="flex items-center gap-1"><Building2 className="w-3 h-3" /> {gym._count.transactions} transactions</span>
                   <span className="flex items-center gap-1"><Receipt className="w-3 h-3" /> {gym._count.expenses} expenses</span>
                 </div>
-                <div className="mt-3 pt-3 border-t flex justify-end">
+                <div className="mt-3 pt-3 border-t flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleToggleActive(gym.id, gym.isActive)}
+                    className={gym.isActive ? 'text-amber-600 hover:text-amber-700' : 'text-emerald-600 hover:text-emerald-700'}
+                  >
+                    {gym.isActive ? 'Suspend' : 'Activate'}
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"

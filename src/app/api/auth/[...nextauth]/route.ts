@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
           gymId: user.gymId || null,
           gymName: user.gym?.name || null,
           gymSlug: user.gym?.slug || null,
+          canRenewMemberships: user.canRenewMemberships,
         };
       },
     }),
@@ -45,6 +46,7 @@ export const authOptions: NextAuthOptions = {
         token.gymId = (user as any).gymId;
         token.gymName = (user as any).gymName;
         token.gymSlug = (user as any).gymSlug;
+        token.canRenewMemberships = (user as any).canRenewMemberships;
       }
       return token;
     },
@@ -55,6 +57,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).gymId = token.gymId;
         (session.user as any).gymName = token.gymName;
         (session.user as any).gymSlug = token.gymSlug;
+        (session.user as any).canRenewMemberships = token.canRenewMemberships;
       }
       return session;
     },

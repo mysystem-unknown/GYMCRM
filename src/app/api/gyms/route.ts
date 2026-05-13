@@ -13,8 +13,12 @@ export async function GET() {
 
   const gyms = await db.gym.findMany({
     include: {
-      owner: { select: { id: true, email: true, name: true, role: true } },
-      _count: { select: { members: true } },
+      users: {
+        where: { role: 'admin' },
+        take: 1,
+        select: { id: true, email: true, name: true, role: true },
+      },
+      _count: { select: { members: true, transactions: true, expenses: true, users: true } },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -33,12 +37,19 @@ export async function POST(request: NextRequest) {
   try {
     const { gymName, gymSlug, gymAddress, gymPhone, adminEmail, adminPassword, adminName } = await request.json();
 
-    if (!gymName || !gymSlug || !adminEmail || !adminPassword) {
-      return NextResponse.json({ error: 'Gym name, slug, admin email, and password are required' }, { status: 400 });
+    if (!gymName || !adminEmail || !adminPassword) {
+      return NextResponse.json({ error: 'Gym name, admin email, and password are required' }, { status: 400 });
+    }
+
+    // Auto-generate slug from gymName if not provided
+    const slug = gymSlug || gymName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+    if (!slug) {
+      return NextResponse.json({ error: 'Could not generate gym slug from name' }, { status: 400 });
     }
 
     // Check slug uniqueness
-    const existingGym = await db.gym.findUnique({ where: { slug: gymSlug } });
+    const existingGym = await db.gym.findUnique({ where: { slug } });
     if (existingGym) {
       return NextResponse.json({ error: 'Gym slug already exists' }, { status: 400 });
     }
@@ -55,13 +66,13 @@ export async function POST(request: NextRequest) {
     const gym = await db.gym.create({
       data: {
         name: gymName,
-        slug: gymSlug,
+        slug,
         address: gymAddress || '',
         phone: gymPhone || '',
       },
     });
 
-    // Create admin user
+    // Create admin user with gymId
     const admin = await db.user.create({
       data: {
         email: adminEmail,
@@ -84,6 +95,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// PATCH toggle gym active status (super_admin only)
+export async function PATCH(request: NextRequest) {
+  const { error, user } = await requireAuth();
+  if (error) return error;
+  if (user.role !== 'super_admin') {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  try {
+    const { id, isActive } = await request.json();
+    if (!id) return NextResponse.json({ error: 'Gym ID required' }, { status: 400 });
+
+    const gym = await db.gym.update({
+      where: { id },
+      data: { isActive },
+    });
+
+    return NextResponse.json({ success: true, gym });
+  } catch (err) {
+    return NextResponse.json({ error: 'Failed to update gym' }, { status: 500 });
+  }
+}
+
 // DELETE gym (super_admin only)
 export async function DELETE(request: NextRequest) {
   const { error, user } = await requireAuth();
@@ -97,8 +131,8 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Gym ID required' }, { status: 400 });
 
-    // Unassign owner first
-    await db.user.updateMany({ where: { gymId: id }, data: { gymId: null } });
+    // Delete all users for the gym
+    await db.user.deleteMany({ where: { gymId: id } });
     await db.gym.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (err) {

@@ -6,6 +6,18 @@ export interface AuthUser {
   gymId: string | null;
   gymName: string | null;
   gymSlug: string | null;
+  canRenewMemberships: boolean;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  isActive: boolean;
+  gymId: string | null;
+  canRenewMemberships: boolean;
+  createdAt: string;
 }
 
 export interface Gym {

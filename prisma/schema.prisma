@@ -18,24 +18,25 @@ model Gym {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner       User?        @relation("GymOwner")
   members     Member[]
   transactions Transaction[]
   expenses    Expense[]
   settings    Settings[]
+  users       User[]
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String   @default("")
-  role      String   @default("staff") // super_admin, admin, staff
-  isActive  Boolean  @default(true)
-  gymId     String?  @unique
-  gym       Gym?     @relation("GymOwner", fields: [gymId], references: [id], onDelete: SetNull)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  password            String
+  name                String   @default("")
+  role                String   @default("staff") // super_admin, admin, staff
+  isActive            Boolean  @default(true)
+  gymId               String?
+  gym                 Gym?     @relation(fields: [gymId], references: [id], onDelete: SetNull)
+  canRenewMemberships Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@index([gymId])
 }

@@ -1,8 +1,18 @@
 import { create } from 'zustand';
-import type { Member, AuthUser } from '@/types/gym';
+import type { Member } from '@/types/gym';
+
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  gymId: string | null;
+  gymName: string | null;
+  gymSlug: string | null;
+  canRenewMemberships: boolean;
+}
 
 interface GymStore {
-  // Auth
   user: AuthUser | null;
   setUser: (user: AuthUser | null) => void;
   isLoading: boolean;
@@ -10,11 +20,9 @@ interface GymStore {
   activeGymId: string | null;
   setActiveGymId: (gymId: string | null) => void;
 
-  // Navigation
-  activeView: 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management';
+  activeView: 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management';
   setActiveView: (view: GymStore['activeView']) => void;
 
-  // Member state
   selectedMember: Member | null;
   setSelectedMember: (member: Member | null) => void;
   showRenewalModal: boolean;
@@ -28,7 +36,6 @@ interface GymStore {
 }
 
 export const useGymStore = create<GymStore>((set, get) => ({
-  // Auth
   user: null,
   setUser: (user) => set({
     user,
@@ -39,11 +46,9 @@ export const useGymStore = create<GymStore>((set, get) => ({
   activeGymId: null,
   setActiveGymId: (gymId) => set({ activeGymId: gymId }),
 
-  // Navigation
   activeView: 'dashboard',
   setActiveView: (view) => set({ activeView: view, selectedMember: null }),
 
-  // Member state
   selectedMember: null,
   setSelectedMember: (member) => set({ selectedMember: member }),
   showRenewalModal: false,

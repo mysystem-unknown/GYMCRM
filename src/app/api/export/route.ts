@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireGymAccess } from '@/lib/auth';
+import * as XLSX from 'xlsx';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const gymId = searchParams.get('gymId') || undefined;
+    const format = searchParams.get('format') || 'json';
 
     const { error, activeGymId } = await requireGymAccess(gymId);
     if (error) return error;
@@ -20,6 +22,54 @@ export async function GET(request: NextRequest) {
 
     const gym = await db.gym.findUnique({ where: { id: activeGymId } });
 
+    if (format === 'xlsx') {
+      const wb = XLSX.utils.book_new();
+
+      // Members sheet
+      const membersData = members.map(m => ({
+        'Member ID': m.memberId, 'Name': m.name, 'Phone': m.phoneNumber,
+        'Join Date': new Date(m.joinDate).toLocaleDateString('en-IN'),
+        'Expiry Date': new Date(m.expiryDate).toLocaleDateString('en-IN'),
+        'Plan': m.membershipPlan, 'Duration (Months)': m.durationMonths,
+        'Plan Price': m.planPrice, 'Cash Payment': m.currentCashPayment,
+        'UPI Payment': m.currentUpiPayment, 'Total Payment': m.totalPayment,
+        'Total Cash': m.totalCash, 'Total UPI': m.totalUpi,
+        'Pending': m.pendingPayment, 'Refund': m.refundAmount,
+        'Status': m.status, 'Notes': m.notes,
+      }));
+      const ws1 = XLSX.utils.json_to_sheet(membersData);
+      XLSX.utils.book_append_sheet(wb, ws1, 'Members');
+
+      // Transactions sheet
+      const txData = transactions.map(t => ({
+        'Member ID': t.member?.memberId || '', 'Member Name': t.member?.name || '',
+        'Payment Mode': t.paymentMode, 'Amount': t.amount,
+        'Plan': t.plan, 'Duration (Months)': t.duration,
+        'Payment Date': new Date(t.paymentDate).toLocaleDateString('en-IN'),
+      }));
+      const ws2 = XLSX.utils.json_to_sheet(txData);
+      XLSX.utils.book_append_sheet(wb, ws2, 'Transactions');
+
+      // Expenses sheet
+      const expData = expenses.map(e => ({
+        'Category': e.category, 'Note': e.note,
+        'Cash Amount': e.cashAmount, 'UPI Amount': e.upiAmount,
+        'Total': e.cashAmount + e.upiAmount,
+        'Expense Date': new Date(e.expenseDate).toLocaleDateString('en-IN'),
+      }));
+      const ws3 = XLSX.utils.json_to_sheet(expData);
+      XLSX.utils.book_append_sheet(wb, ws3, 'Expenses');
+
+      const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      return new NextResponse(buf, {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'Content-Disposition': `attachment; filename="gymcrm-backup-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+        },
+      });
+    }
+
+    // JSON format (default)
     const data = {
       exportDate: new Date().toISOString(),
       gym: { name: gym?.name, slug: gym?.slug },

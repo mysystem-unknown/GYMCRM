@@ -33,10 +33,14 @@ export function MembersView() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const activeGymId = useGymStore((s) => s.activeGymId);
+  const user = useGymStore((s) => s.user);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
   const setShowEditMemberModal = useGymStore((s) => s.setShowEditMemberModal);
+
+  const canManage = user?.role === 'admin' || user?.role === 'super_admin';
+  const canRenew = canManage || user?.canRenewMemberships === true;
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300);
@@ -128,12 +132,16 @@ export function MembersView() {
           <p className="text-sm text-muted-foreground">{total} total members</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-            <Download className="w-4 h-4" /> Export CSV
-          </Button>
-          <Button size="sm" onClick={() => setShowAddMemberModal(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-            <Plus className="w-4 h-4" /> Add Member
-          </Button>
+          {canManage && (
+            <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
+              <Download className="w-4 h-4" /> Export CSV
+            </Button>
+          )}
+          {canManage && (
+            <Button size="sm" onClick={() => setShowAddMemberModal(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-4 h-4" /> Add Member
+            </Button>
+          )}
         </div>
       </div>
 
@@ -234,15 +242,21 @@ export function MembersView() {
                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleView(member)} title="View">
                           <Eye className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenew(member)} title="Renew">
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(member)} title="Edit">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(member.id, member.name)} title="Delete">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        {canRenew && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleRenew(member)} title="Renew">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {canManage && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(member)} title="Edit">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                        {canManage && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-700" onClick={() => handleDelete(member.id, member.name)} title="Delete">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -286,9 +300,11 @@ export function MembersView() {
                   <span className="text-muted-foreground">UPI: {formatCurrency(member.totalUpi)}</span>
                 </div>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => handleRenew(member)}>
-                    <RefreshCw className="w-3 h-3" /> Renew
-                  </Button>
+                  {canRenew && (
+                    <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => handleRenew(member)}>
+                      <RefreshCw className="w-3 h-3" /> Renew
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" className="h-7" onClick={() => handleView(member)}>
                     <Eye className="w-3 h-3" />
                   </Button>

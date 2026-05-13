@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { requireGymAccess } from '@/lib/auth';
+import { requireGymAccess, canRenewMember } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,9 +40,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { gymId: reqGymId, memberId, paymentMode, amount, plan, duration, paymentDate } = body;
 
-    const { error, activeGymId } = await requireGymAccess(reqGymId);
+    const { error, user, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
     if (!activeGymId) return NextResponse.json({ error: 'No gym selected' }, { status: 400 });
+
+    // Check renewal permission
+    if (!canRenewMember(user)) {
+      return NextResponse.json({ error: 'You do not have permission to renew memberships' }, { status: 403 });
+    }
 
     const member = await db.member.findFirst({ where: { id: memberId, gymId: activeGymId } });
     if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 });

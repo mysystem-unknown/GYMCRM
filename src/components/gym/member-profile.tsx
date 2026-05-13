@@ -17,6 +17,8 @@ export function MemberProfile() {
   const selectedMember = useGymStore((s) => s.selectedMember);
   const setSelectedMember = useGymStore((s) => s.setSelectedMember);
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
+  const user = useGymStore((s) => s.user);
+  const canRenew = user?.role === 'admin' || user?.role === 'super_admin' || user?.canRenewMemberships === true;
   const activeGymId = useGymStore((s) => s.activeGymId);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,9 +69,11 @@ export function MemberProfile() {
               <p className="text-emerald-100 text-sm">{selectedMember.memberId}</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="secondary" size="sm" className="gap-1" onClick={() => setShowRenewalModal(true)}>
-                <RefreshCw className="w-3.5 h-3.5" /> Renew
-              </Button>
+              {canRenew && (
+                <Button variant="secondary" size="sm" className="gap-1" onClick={() => setShowRenewalModal(true)}>
+                  <RefreshCw className="w-3.5 h-3.5" /> Renew
+                </Button>
+              )}
             </div>
           </div>
         </div>
