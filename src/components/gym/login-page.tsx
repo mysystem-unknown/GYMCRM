@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dumbbell, Eye, EyeOff, Loader2, Phone, Mail, BookOpen, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useGymStore } from '@/store/gym-store';
 import { ForgotPasswordView } from './forgot-password-view';
 import { HowToUseView } from './how-to-use-view';
 
@@ -16,6 +17,11 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'login' | 'forgot' | 'howto'>('login');
+
+  // Get store actions for direct state update after login
+  const setUser = useGymStore((s) => s.setUser);
+  const setGymList = useGymStore((s) => s.setGymList);
+  const setActiveGymId = useGymStore((s) => s.setActiveGymId);
 
   if (view === 'forgot') return <ForgotPasswordView onBack={() => setView('login')} />;
   if (view === 'howto') return <HowToUseView onBack={() => setView('login')} />;
@@ -37,10 +43,34 @@ export function LoginPage() {
       const data = await res.json();
       if (!res.ok) {
         toast.error(data.error || 'Invalid email or password');
-      } else {
-        toast.success('Welcome back!');
+        return;
       }
-    } catch {
+
+      // Login succeeded — update store directly
+      console.log('[LoginPage] Success, updating store:', data.user?.email, data.user?.role);
+      setUser(data.user);
+
+      // For super_admin, fetch gym list immediately
+      if (data.user?.role === 'super_admin') {
+        try {
+          const gymsRes = await fetch('/api/gyms', { credentials: 'include' });
+          if (gymsRes.ok) {
+            const gymsData = await gymsRes.json();
+            const gyms = gymsData.gyms || [];
+            setGymList(gyms);
+            if (!data.user.gymId && gyms.length > 0) {
+              const activeGym = gyms.find((g: { isActive: boolean }) => g.isActive) || gyms[0];
+              setActiveGymId(activeGym.id);
+            }
+          }
+        } catch (err) {
+          console.error('[LoginPage] Failed to fetch gym list:', err);
+        }
+      }
+
+      toast.success('Welcome back!');
+    } catch (err) {
+      console.error('[LoginPage] Request failed:', err);
       toast.error('Login failed. Check your connection.');
     } finally {
       setLoading(false);

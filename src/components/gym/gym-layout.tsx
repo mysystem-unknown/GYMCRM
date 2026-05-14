@@ -208,13 +208,17 @@ export function GymLayout({ user }: UserProps) {
 
   const handleSignOut = async () => {
     try {
+      const { setUser } = useGymStore.getState();
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      window.location.href = '/';
+      // Clear store — AuthGate will reactively show LoginView
+      setUser(null);
     } catch {
-      window.location.href = '/';
+      // Even if API fails, clear local state
+      const { setUser } = useGymStore.getState();
+      setUser(null);
     }
   };
 

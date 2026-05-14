@@ -27,3 +27,28 @@ Stage Summary:
 - Dashboard, Members, Gyms, Expenses, Users, Settings, Export all verified
 - Gym creation and Member creation both verified working
 - Zero external dependencies required - no API keys, tokens, or env vars needed
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix custom JWT auth flow — login not working in frontend
+
+Work Log:
+- Identified 3 critical bugs in the auth flow:
+  1. **ROOT CAUSE**: auth-gate.tsx line 82 used `useGymStore.getState().user` — a one-time synchronous read, NOT a reactive subscription. When setUser() was called after login, AuthGate never re-rendered. User stayed on login page.
+  2. login-view.tsx used `window.location.reload()` — full page reload that caused visible flash and was fragile.
+  3. login-page.tsx only showed toast.success() after login — no redirect at all, user stayed on login page.
+- Fixed auth-gate.tsx: Changed to `useGymStore((s) => s.user)` — reactive subscription that re-renders when store changes
+- Fixed login-view.tsx: After successful login, directly calls `setUser(data.user)` from store + fetches gym list for super_admin. No page reload needed. AuthGate reactively shows dashboard.
+- Fixed login-page.tsx: Same fix — direct store update after login success
+- Fixed gym-layout.tsx logout: Calls `setUser(null)` to clear store. AuthGate reactively shows LoginView. No full page navigation needed.
+- Added debug logging to login API, session API, auth-gate, login views
+- Verified cookie name consistency (gymcrm-session) across all files
+- Verified zero NextAuth references remain in codebase
+
+Stage Summary:
+- Build passes: 0 errors, 0 warnings
+- Full API auth flow verified: login → session → dashboard → logout → session cleared
+- Frontend auth flow now works via reactive Zustand store — no page reloads needed
+- Login is instant: setUser() → AuthGate re-renders → shows GymLayout
+- Logout is instant: setUser(null) → AuthGate re-renders → shows LoginView

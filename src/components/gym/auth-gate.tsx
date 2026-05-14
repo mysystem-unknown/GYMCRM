@@ -10,6 +10,8 @@ import { fetchAPI } from '@/lib/api';
 import { toast } from 'sonner';
 
 export function AuthGate() {
+  // REACTIVE subscription — re-renders when user changes in store
+  const user = useGymStore((s) => s.user);
   const setUser = useGymStore((s) => s.setUser);
   const setGymList = useGymStore((s) => s.setGymList);
   const setActiveGymId = useGymStore((s) => s.setActiveGymId);
@@ -23,6 +25,7 @@ export function AuthGate() {
     }
   }, []);
 
+  // Fetch session on mount — only runs once
   useEffect(() => {
     const init = async () => {
       try {
@@ -30,6 +33,7 @@ export function AuthGate() {
         if (res.ok) {
           const data = await res.json();
           if (data) {
+            console.log('[AuthGate] Session found:', data.email, data.role);
             setUser(data);
 
             // For super_admin, fetch gym list and auto-select first gym
@@ -39,29 +43,31 @@ export function AuthGate() {
                 const gyms = result.gyms || [];
                 setGymList(gyms);
 
-                // Auto-select first active gym if no active gym is set
                 if (!data.gymId && gyms.length > 0) {
                   const activeGym = gyms.find(g => g.isActive) || gyms[0];
                   setActiveGymId(activeGym.id);
                 } else if (!data.gymId && gyms.length === 0) {
-                  // Super admin with no gyms - show a hint
                   toast.info('No gyms created yet. Go to "Gyms" to create your first gym.');
                 }
               } catch (err) {
-                console.error('Failed to load gym list:', err);
+                console.error('[AuthGate] Failed to load gym list:', err);
                 toast.error('Failed to load gym list. Please try refreshing.');
               }
             }
+          } else {
+            console.log('[AuthGate] No session found — showing login');
           }
         }
-      } catch {
+      } catch (err) {
+        console.error('[AuthGate] Session fetch error:', err);
         setUser(null);
       } finally {
         setReady(true);
       }
     };
     init();
-  }, [setUser, setGymList, setActiveGymId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (resetToken) {
     return <ResetPasswordView token={resetToken} onBack={() => { window.location.search = ''; }} />;
@@ -79,7 +85,7 @@ export function AuthGate() {
     );
   }
 
-  const user = useGymStore.getState().user;
+  // This is now reactive — when login sets user in store, this re-renders
   if (!user) return <LoginView />;
   return <GymLayout user={user} />;
 }
