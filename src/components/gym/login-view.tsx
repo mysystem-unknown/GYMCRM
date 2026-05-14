@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,18 +29,20 @@ export function LoginView() {
     }
     setLoading(true);
     try {
-      const result = await signIn('credentials', {
-        email: email.trim().toLowerCase(),
-        password,
-        redirect: false,
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
-      if (result?.error) {
-        toast.error('Invalid email or password');
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || 'Invalid email or password');
       } else {
         window.location.reload();
       }
     } catch {
-      toast.error('Login failed');
+      toast.error('Login failed. Check your connection.');
     } finally {
       setLoading(false);
     }

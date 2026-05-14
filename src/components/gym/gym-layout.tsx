@@ -168,6 +168,7 @@ function SidebarContent({ user, onExport, onSignOut, onHowToUse, onNavigate }: {
 export function GymLayout({ user }: UserProps) {
   const { theme, setTheme } = useTheme();
   const activeView = useGymStore((s) => s.activeView);
+  const setActiveView = useGymStore((s) => s.setActiveView);
   const selectedMember = useGymStore((s) => s.selectedMember);
   const showRenewalModal = useGymStore((s) => s.showRenewalModal);
   const showAddMemberModal = useGymStore((s) => s.showAddMemberModal);
@@ -206,8 +207,15 @@ export function GymLayout({ user }: UserProps) {
   };
 
   const handleSignOut = async () => {
-    await fetch('/api/auth/signout', { method: 'POST' });
-    window.location.href = '/';
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      window.location.href = '/';
+    } catch {
+      window.location.href = '/';
+    }
   };
 
   const handleGymSwitch = (gymId: string) => {
