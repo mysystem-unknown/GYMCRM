@@ -215,9 +215,35 @@ export function GymLayout({ user }: UserProps) {
     toast.success(`Switched to gym: ${gymList.find(g => g.id === gymId)?.name || gymId}`);
   };
 
+  // Super admin with no gym selected - show a helpful prompt for gym-dependent views
+  const NoGymSelected = () => (
+    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+      <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+        <Building2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+      </div>
+      <h3 className="text-xl font-semibold">No Gym Selected</h3>
+      <p className="text-sm text-muted-foreground max-w-md text-center">
+        As the Super Admin, you need to select a gym to manage members, view the dashboard, and access other features. Create a new gym or select one from the dropdown above.
+      </p>
+      <Button
+        onClick={() => setActiveView('gym-management')}
+        className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+      >
+        <Building2 className="w-4 h-4" /> Go to Gym Management
+      </Button>
+    </div>
+  );
+
   const renderView = () => {
     if (selectedMember && activeView === 'members') return <MemberProfile />;
     if (useGymStore.getState().showHowToUse) return <HowToUseView onBack={() => setShowHowToUse(false)} />;
+
+    // Super admin gym-dependent views require a gym to be selected
+    const gymDependentViews = ['dashboard', 'members', 'expenses', 'search', 'settings', 'staff-management'];
+    if (isSuperAdmin && gymDependentViews.includes(activeView) && !activeGymId) {
+      return <NoGymSelected />;
+    }
+
     switch (activeView) {
       case 'dashboard': return <DashboardView />;
       case 'members': return <MembersView />;

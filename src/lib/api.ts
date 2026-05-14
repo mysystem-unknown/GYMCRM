@@ -1,6 +1,7 @@
 export async function fetchAPI<T = Record<string, unknown>>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
   if (!res.ok) {
@@ -14,6 +15,7 @@ export async function fetchAPI<T = Record<string, unknown>>(url: string, options
 export async function fetchAPIWithError(url: string, options?: RequestInit): Promise<Record<string, unknown>> {
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
   });
   const data = await res.json().catch(() => ({ error: 'Request failed' }));

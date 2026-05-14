@@ -188,3 +188,58 @@ Stage Summary:
 - Auth gate no longer passes invalid props
 - Dashboard route properly typed
 - All validation error messages display correctly via standard pattern
+---
+Task ID: 3
+Agent: Main
+Task: Fix gym creation, member creation, dashboard calculations, and all SaaS-related bugs
+
+Work Log:
+
+ROOT CAUSE ANALYSIS:
+- Traced entire codebase: auth flow, API routes, store state management, all views
+- Found 5 issues causing gym/member creation failures and incorrect dashboard data
+
+FIX 1 - Removed deprecated middleware.ts (Next.js 16):
+- src/middleware.ts and src/middleware.ts.bak deleted
+- Next.js 16 deprecated middleware in favor of "proxy" - the old file caused routing interference
+- Build now has zero warnings
+
+FIX 2 - Added credentials:'include' to fetchAPI (src/lib/api.ts):
+- fetchAPI and fetchAPIWithError now explicitly include credentials in all requests
+- Ensures NextAuth session cookies are always sent with API calls
+- Critical for super_admin who relies on cookie-based auth
+
+FIX 3 - Improved auth-gate.tsx error handling:
+- Added credentials:'include' to session fetch
+- Added toast.error when gym list fetch fails (previously silent catch)
+- Added toast.info when super_admin has no gyms ("Go to Gyms to create your first gym")
+- Better UX guidance for new super_admin users
+
+FIX 4 - Added "No gym selected" state in gym-layout.tsx:
+- When super_admin has no gym selected and tries to access gym-dependent views (dashboard, members, expenses, search, settings, staff), shows a helpful banner with "Go to Gym Management" button
+- Prevents confusing empty states
+
+FIX 5 - Fixed dashboard balance calculation (api/dashboard/route.ts):
+- OLD: finalCashBalance = openingCash + totalCash (all-time) - monthlyCashExpense (WRONG - mixed all-time revenue with monthly expenses)
+- NEW: Added all-time expense aggregation
+- finalCashBalance = openingCash + totalCash (all-time) - totalCashExpense (all-time)
+- finalUpiBalance = openingUpi + totalUpi (all-time) - totalUpiExpense (all-time)
+- Verified with test data: Opening 5000 + Cash 1500 - Cash Expense 500 = 6000 (CORRECT)
+
+FIX 6 - Added NEXTAUTH_URL to .env:
+- Eliminates next-auth URL warning
+
+VERIFICATION:
+- Production build: SUCCESS (zero warnings, zero errors)
+- ESLint: 0 errors
+- Comprehensive DB test: All CRUD operations pass (gym, admin, member, transaction, expense, settings, renewal)
+- API endpoint test: Auth protection works (401 for unauthenticated requests, 200 for session)
+- Super admin verified: email=0110aryantiwari@gmail.com, role=super_admin, gymId=null
+- Existing Power Fitness gym intact with 1 member and 2 users
+
+Stage Summary:
+- 6 files modified: middleware (deleted), api.ts, auth-gate.tsx, gym-layout.tsx, dashboard/route.ts, .env
+- Dashboard balance calculations now correct (all-time expenses, not just monthly)
+- Super admin flow: Login -> Auto-select gym -> Create gym -> Auto-switch -> Add members (all working)
+- Auth cookie handling made robust with explicit credentials
+- Clear UX when no gym is selected

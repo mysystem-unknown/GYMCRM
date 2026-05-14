@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ResetPasswordView } from './reset-password-view';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI } from '@/lib/api';
+import { toast } from 'sonner';
 
 export function AuthGate() {
   const setUser = useGymStore((s) => s.setUser);
@@ -25,7 +26,7 @@ export function AuthGate() {
   useEffect(() => {
     const init = async () => {
       try {
-        const res = await fetch('/api/auth/session');
+        const res = await fetch('/api/auth/session', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           if (data) {
@@ -37,13 +38,18 @@ export function AuthGate() {
                 const result = await fetchAPI<{ gyms: { id: string; name: string; isActive: boolean }[] }>('/api/gyms');
                 const gyms = result.gyms || [];
                 setGymList(gyms);
+
                 // Auto-select first active gym if no active gym is set
                 if (!data.gymId && gyms.length > 0) {
                   const activeGym = gyms.find(g => g.isActive) || gyms[0];
                   setActiveGymId(activeGym.id);
+                } else if (!data.gymId && gyms.length === 0) {
+                  // Super admin with no gyms - show a hint
+                  toast.info('No gyms created yet. Go to "Gyms" to create your first gym.');
                 }
-              } catch {
-                // Gym list fetch failed, but user is still logged in
+              } catch (err) {
+                console.error('Failed to load gym list:', err);
+                toast.error('Failed to load gym list. Please try refreshing.');
               }
             }
           }

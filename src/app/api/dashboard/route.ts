@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-    // Bulk status update in a single query using Prisma
-    // Find all non-refunded members that need status update
+    // Bulk status update for all non-refunded members
     const membersNeedingUpdate = await db.member.findMany({
       where: {
         gymId: activeGymId,
@@ -49,7 +48,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Use Prisma aggregations instead of JavaScript counting
+    // Member counts
     const [totalMembers, activeMembers, expiringSoon, expiredMembers, refundedMembers] = await Promise.all([
       db.member.count({ where: { gymId: activeGymId } }),
       db.member.count({ where: { gymId: activeGymId, status: 'Active' } }),
@@ -58,6 +57,7 @@ export async function GET(request: NextRequest) {
       db.member.count({ where: { gymId: activeGymId, status: 'Refunded' } }),
     ]);
 
+    // Member payment aggregates (all-time)
     const aggregateResult = await db.member.aggregate({
       where: { gymId: activeGymId },
       _sum: {
@@ -104,14 +104,25 @@ export async function GET(request: NextRequest) {
     const monthlyCashExpense = monthlyExpAggregate._sum.cashAmount || 0;
     const monthlyUpiExpense = monthlyExpAggregate._sum.upiAmount || 0;
 
+    // Total (all-time) expense aggregations for correct balance calculation
+    const totalExpAggregate = await db.expense.aggregate({
+      where: { gymId: activeGymId },
+      _sum: { cashAmount: true, upiAmount: true },
+    });
+    const totalCashExpense = totalExpAggregate._sum.cashAmount || 0;
+    const totalUpiExpense = totalExpAggregate._sum.upiAmount || 0;
+
+    // Balance calculations
+    // Cash Balance = Opening Cash + Total Cash Revenue (all-time) - Total Cash Expenses (all-time)
+    // UPI Balance = Opening UPI + Total UPI Revenue (all-time) - Total UPI Expenses (all-time)
     const settings = await db.settings.findUnique({ where: { gymId: activeGymId } });
     const openingCash = settings?.openingCashBalance || 0;
     const openingUpi = settings?.openingUpiBalance || 0;
-    const finalCashBalance = openingCash + totalCash - monthlyCashExpense;
-    const finalUpiBalance = openingUpi + totalUpi - monthlyUpiExpense;
+    const finalCashBalance = openingCash + totalCash - totalCashExpense;
+    const finalUpiBalance = openingUpi + totalUpi - totalUpiExpense;
     const finalBalance = finalCashBalance + finalUpiBalance;
 
-    // Revenue by month — use aggregations instead of loading all records
+    // Revenue by month
     const revenueByMonth: { month: string; revenue: number; expenses: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
