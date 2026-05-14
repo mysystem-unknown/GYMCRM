@@ -45,6 +45,7 @@ export function AddMemberModal() {
       membershipPlan: '1 Month',
       paymentMode: 'UPI',
       amount: 1500,
+      joinDate: new Date(),
     },
   });
 

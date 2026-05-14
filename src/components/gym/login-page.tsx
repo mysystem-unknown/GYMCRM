@@ -2,22 +2,22 @@
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
+import { useGymStore } from '@/store/gym-store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dumbbell, Eye, EyeOff, Loader2, Phone, Mail, BookOpen, AlertCircle, Instagram } from 'lucide-react';
+import { Dumbbell, Eye, EyeOff, Loader2, Phone, Mail, BookOpen, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { ForgotPasswordView } from './forgot-password-view';
 import { HowToUseView } from './how-to-use-view';
 
-export function LoginView() {
+export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState<'login' | 'forgot' | 'howto'>('login');
-
 
   if (view === 'forgot') return <ForgotPasswordView onBack={() => setView('login')} />;
   if (view === 'howto') return <HowToUseView onBack={() => setView('login')} />;
@@ -38,7 +38,7 @@ export function LoginView() {
       if (result?.error) {
         toast.error('Invalid email or password');
       } else {
-        window.location.reload();
+        toast.success('Welcome back!');
       }
     } catch {
       toast.error('Login failed');
@@ -112,7 +112,7 @@ export function LoginView() {
                 </div>
               </div>
               <Button type="submit" disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700">
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Sign In
               </Button>
             </form>
@@ -137,9 +137,6 @@ export function LoginView() {
                 <div className="flex flex-col gap-1 mt-2">
                   <a href="tel:+919306512832" className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline">
                     <Phone className="w-3 h-3" /> +91 93065 12832
-                  </a>
-                  <a href="https://instagram.com/relaxed.dreamer" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline">
-                    <Instagram className="w-3 h-3" /> relaxed.dreamer
                   </a>
                   <a href="mailto:0110aryantiwari@gmail.com" className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 hover:underline">
                     <Mail className="w-3 h-3" /> 0110aryantiwari@gmail.com
