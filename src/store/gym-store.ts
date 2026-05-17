@@ -28,7 +28,7 @@ interface GymStore {
   gymList: GymListItem[];
   setGymList: (gyms: GymListItem[]) => void;
 
-  activeView: 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management';
+  activeView: 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management' | 'plans';
   setActiveView: (view: GymStore['activeView']) => void;
 
   selectedMember: Member | null;

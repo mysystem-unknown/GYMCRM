@@ -23,6 +23,7 @@ model Gym {
   expenses    Expense[]
   settings    Settings[]
   users       User[]
+  gymPlans    GymPlan[]
 }
 
 model User {
@@ -81,6 +82,9 @@ model Member {
   refundAmount        Float    @default(0)
   status              String   @default("Active")
   notes               String   @default("")
+  profileImageUrl     String   @default("")
+  planId              String?
+  plan                GymPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -88,6 +92,7 @@ model Member {
 
   @@unique([gymId, memberId])
   @@index([gymId])
+  @@index([planId])
 }
 
 model Transaction {
@@ -118,5 +123,23 @@ model Expense {
   expenseDate  DateTime @default(now())
   createdAt    DateTime @default(now())
 
+  @@index([gymId])
+}
+
+model GymPlan {
+  id            String   @id @default(cuid())
+  gymId         String
+  gym           Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  name          String
+  durationDays  Int
+  price         Float    @default(0)
+  description   String   @default("")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members Member[]
+
+  @@unique([gymId, name])
   @@index([gymId])
 }
