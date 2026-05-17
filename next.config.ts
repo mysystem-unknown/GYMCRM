@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+  output: "standalone",
   allowedDevOrigins: [
     "preview-chat-7d974382-59a9-4e3a-82f1-eac14e505f14.space-z.ai",
   ],
