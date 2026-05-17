@@ -1,34 +1,79 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { addMemberSchema, type AddMemberFormValues } from '@/lib/schemas';
 import { fetchAPI } from '@/lib/api';
 import { useGymStore } from '@/store/gym-store';
+import type { GymPlan } from '@/types/gym';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
-const planOptions = [
-  { label: '1 Month', months: 1, price: 1500 },
-  { label: '3 Months', months: 3, price: 3500 },
-  { label: '6 Months', months: 6, price: 4500 },
-  { label: '1 Year', months: 12, price: 8000 },
+interface PlanOption {
+  label: string;
+  months: number;
+  days: number;
+  price: number;
+  planId?: string;
+}
+
+const defaultPlanOptions: PlanOption[] = [
+  { label: '1 Month', months: 1, days: 0, price: 1500 },
+  { label: '3 Months', months: 3, days: 0, price: 3500 },
+  { label: '6 Months', months: 6, days: 0, price: 4500 },
+  { label: '1 Year', months: 12, days: 0, price: 8000 },
 ];
 
 export function AddMemberModal() {
   const [open, setOpen] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [customPlans, setCustomPlans] = useState<GymPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
   const setShowAddMemberModal = useGymStore((s) => s.setShowAddMemberModal);
   const activeGymId = useGymStore((s) => s.activeGymId);
+
+  // Fetch custom plans
+  useEffect(() => {
+    if (!activeGymId) {
+      setPlansLoading(false);
+      return;
+    }
+    setPlansLoading(true);
+    fetchAPI<{ plans: GymPlan[] }>(`/api/plans?gymId=${activeGymId}`)
+      .then((res) => setCustomPlans(res.plans.filter((p) => p.isActive)))
+      .catch(() => {})
+      .finally(() => setPlansLoading(false));
+  }, [activeGymId]);
+
+  // Merge default + custom plans
+  const allPlanOptions = useMemo<PlanOption[]>(() => {
+    const custom: PlanOption[] = customPlans.map((p) => ({
+      label: p.name,
+      months: Math.round(p.durationDays / 30.44),
+      days: p.durationDays,
+      price: p.price,
+      planId: p.id,
+    }));
+    // Deduplicate by label
+    const seen = new Set<string>();
+    const merged: PlanOption[] = [];
+    for (const p of [...custom, ...defaultPlanOptions]) {
+      if (!seen.has(p.label)) {
+        seen.add(p.label);
+        merged.push(p);
+      }
+    }
+    return merged;
+  }, [customPlans]);
 
   const {
     register,
@@ -42,28 +87,43 @@ export function AddMemberModal() {
     defaultValues: {
       name: '',
       phone: '',
-      membershipPlan: '1 Month',
+      membershipPlan: allPlanOptions[0]?.label || '1 Month',
       paymentMode: 'UPI',
-      amount: 1500,
+      amount: allPlanOptions[0]?.price || 1500,
       joinDate: new Date(),
     },
   });
 
-  const selectedPlan = planOptions.find(p => p.label === watch('membershipPlan'));
+  const selectedPlan = allPlanOptions.find((p) => p.label === watch('membershipPlan'));
   const joinDate = watch('joinDate');
   const amount = watch('amount');
 
-  const expiryDate = joinDate
-    ? new Date(new Date(joinDate).setMonth(joinDate.getMonth() + (selectedPlan?.months || 1)))
-    : null;
+  const expiryDate = useMemo(() => {
+    if (!joinDate) return null;
+    const d = new Date(joinDate);
+    if (selectedPlan?.days && selectedPlan.days > 0) {
+      d.setDate(d.getDate() + selectedPlan.days);
+    } else {
+      d.setMonth(d.getMonth() + (selectedPlan?.months || 1));
+    }
+    return d;
+  }, [joinDate, selectedPlan]);
 
   const onSubmit = async (data: AddMemberFormValues) => {
     if (!activeGymId) {
       toast.error('No gym selected. Please select a gym first.');
       return;
     }
+    if (!selectedPlan) {
+      toast.error('Please select a plan.');
+      return;
+    }
     setLoading(true);
     try {
+      const durationMonths = selectedPlan.days > 0
+        ? Math.round(selectedPlan.days / 30.44)
+        : selectedPlan.months;
+
       await fetchAPI('/api/members', {
         method: 'POST',
         body: JSON.stringify({
@@ -71,8 +131,10 @@ export function AddMemberModal() {
           name: data.name.trim(),
           phoneNumber: data.phone.trim(),
           membershipPlan: data.membershipPlan,
-          durationMonths: selectedPlan?.months || 1,
-          planPrice: selectedPlan?.price || 0,
+          durationMonths,
+          durationDays: selectedPlan.days > 0 ? selectedPlan.days : undefined,
+          planPrice: selectedPlan.price,
+          planId: selectedPlan.planId || undefined,
           paymentMode: data.paymentMode,
           amount: data.amount,
           joinDate: data.joinDate.toISOString(),
@@ -90,7 +152,7 @@ export function AddMemberModal() {
 
   const handlePlanChange = (val: string) => {
     setValue('membershipPlan', val);
-    const p = planOptions.find(o => o.label === val);
+    const p = allPlanOptions.find((o) => o.label === val);
     if (p) setValue('amount', p.price);
   };
 
@@ -119,11 +181,31 @@ export function AddMemberModal() {
                 name="membershipPlan"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={handlePlanChange}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger>
                     <SelectContent>
-                      {planOptions.map(p => (
-                        <SelectItem key={p.label} value={p.label}>{p.label} - ₹{p.price}</SelectItem>
-                      ))}
+                      {customPlans.filter((p) => p.isActive).length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Custom Plans</SelectLabel>
+                          {allPlanOptions
+                            .filter((p) => p.planId)
+                            .map((p) => (
+                              <SelectItem key={p.label} value={p.label}>
+                                {p.label} - ₹{p.price}
+                                {p.days > 0 && (
+                                  <span className="text-muted-foreground ml-1 text-xs">({p.days}d)</span>
+                                )}
+                              </SelectItem>
+                            ))}
+                        </SelectGroup>
+                      )}
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-semibold text-muted-foreground">Default Plans</SelectLabel>
+                        {allPlanOptions
+                          .filter((p) => !p.planId)
+                          .map((p) => (
+                            <SelectItem key={p.label} value={p.label}>{p.label} - ₹{p.price}</SelectItem>
+                          ))}
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 )}

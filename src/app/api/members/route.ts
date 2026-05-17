@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { gymId: reqGymId, name, phoneNumber, membershipPlan, durationMonths, planPrice, paymentMode, amount, joinDate } = body;
+    const { gymId: reqGymId, name, phoneNumber, membershipPlan, durationMonths, durationDays, planPrice, planId, paymentMode, amount, joinDate } = body;
 
     const { error, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
@@ -89,7 +89,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid join date' }, { status: 400 });
     }
     const expiry = new Date(start);
-    expiry.setMonth(expiry.getMonth() + (durationMonths || 1));
+    // Use durationDays if provided (custom plans), otherwise use durationMonths
+    if (typeof durationDays === 'number' && durationDays > 0) {
+      expiry.setDate(expiry.getDate() + durationDays);
+    } else {
+      expiry.setMonth(expiry.getMonth() + (durationMonths || 1));
+    }
 
     const isCash = paymentMode === 'Cash';
     const cashAmt = isCash ? (amount || 0) : 0;
@@ -104,7 +109,7 @@ export async function POST(request: NextRequest) {
         joinDate: start,
         expiryDate: expiry,
         membershipPlan: membershipPlan || '1 Month',
-        durationMonths: durationMonths || 1,
+        durationMonths: durationMonths || Math.round((durationDays || 30) / 30.44),
         planPrice: planPrice || 0,
         currentCashPayment: cashAmt,
         currentUpiPayment: upiAmt,
@@ -113,6 +118,7 @@ export async function POST(request: NextRequest) {
         totalUpi: upiAmt,
         pendingPayment: (planPrice || 0) - (amount || 0),
         status: 'Active',
+        planId: planId || null,
       },
     });
 
@@ -138,10 +144,26 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, ...data } = body;
+    const { id, name, refundAmount, pendingPayment, ...data } = body;
     if (!id) return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
     if (!name || !name.trim()) return NextResponse.json({ error: 'Member name is required' }, { status: 400 });
-    const member = await db.member.update({ where: { id }, data: { name: name.trim(), ...data } });
+
+    const updateData: Record<string, unknown> = { name: name.trim(), ...data };
+
+    // Handle refund amount - add to existing refundAmount
+    if (typeof refundAmount === 'number' && refundAmount > 0) {
+      const current = await db.member.findUnique({ where: { id } });
+      if (current) {
+        updateData.refundAmount = (current.refundAmount || 0) + refundAmount;
+      }
+    }
+
+    // Handle pending payment adjustment
+    if (typeof pendingPayment === 'number') {
+      updateData.pendingPayment = pendingPayment;
+    }
+
+    const member = await db.member.update({ where: { id }, data: updateData });
     return NextResponse.json(member);
   } catch (error) {
     console.error('PUT member error:', error);

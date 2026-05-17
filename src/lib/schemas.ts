@@ -16,6 +16,7 @@ export const editMemberSchema = z.object({
   phone: z.string().min(1, 'Phone is required'),
   status: z.string().min(1, 'Status is required'),
   notes: z.string(),
+  refundAmount: z.number().min(0, 'Refund amount must be non-negative').optional(),
 });
 export type EditMemberFormValues = z.infer<typeof editMemberSchema>;
 

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { gymId: reqGymId, memberId, paymentMode, amount, plan, duration, paymentDate } = body;
+    const { gymId: reqGymId, memberId, paymentMode, amount, plan, duration, durationDays, planId, paymentDate } = body;
 
     const { error, user, activeGymId } = await requireGymAccess(reqGymId);
     if (error) return error;
@@ -68,7 +68,12 @@ export async function POST(request: NextRequest) {
     const currentExpiry = new Date(member.expiryDate);
     const baseDate = currentExpiry > new Date() ? currentExpiry : start;
     const newExpiry = new Date(baseDate);
-    newExpiry.setMonth(newExpiry.getMonth() + durMonths);
+    // Use durationDays if provided (custom plans), otherwise use months
+    if (typeof durationDays === 'number' && durationDays > 0) {
+      newExpiry.setDate(newExpiry.getDate() + durationDays);
+    } else {
+      newExpiry.setMonth(newExpiry.getMonth() + durMonths);
+    }
 
     const daysUntilExpiry = Math.ceil((newExpiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     let newStatus = 'Expired';
@@ -89,6 +94,7 @@ export async function POST(request: NextRequest) {
         totalCash: member.totalCash + cashAmt,
         totalUpi: member.totalUpi + upiAmt,
         status: newStatus,
+        planId: planId || member.planId,
       },
     });
 
