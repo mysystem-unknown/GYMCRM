@@ -225,7 +225,7 @@ export function GymManagementView() {
             <DialogTitle>Create New Gym</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(handleCreate)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Gym Name *</Label>
                 <Input {...register('gymName')} placeholder="e.g., FitZone Gym" />
@@ -242,7 +242,7 @@ export function GymManagementView() {
             </div>
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Gym Owner Details</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label>Owner Name</Label>
                   <Input {...register('adminName')} placeholder="Owner name" />

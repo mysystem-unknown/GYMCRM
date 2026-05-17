@@ -82,9 +82,9 @@ export function MemberProfile() {
 
       {/* Header Card */}
       <Card className="border-0 shadow-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-6 text-white">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-4 sm:p-6 text-white">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex-shrink-0">
                 <ImageUpload
                   currentImageUrl={profileUrl}
@@ -96,17 +96,17 @@ export function MemberProfile() {
                   readOnly={!canManage}
                 />
               </div>
-              <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h1 className="text-2xl font-bold">{selectedMember.name}</h1>
-                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedMember.status)}`}>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-bold">{selectedMember.name}</h1>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium ${getStatusColor(selectedMember.status)}`}>
                     {selectedMember.status}
                   </span>
                 </div>
-                <p className="text-emerald-100 text-sm">{selectedMember.memberId}</p>
+                <p className="text-emerald-100 text-xs sm:text-sm">{selectedMember.memberId}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div>
               {canRenew && (
                 <Button variant="secondary" size="sm" className="gap-1" onClick={() => setShowRenewalModal(true)}>
                   <RefreshCw className="w-3.5 h-3.5" /> Renew

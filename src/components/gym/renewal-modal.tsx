@@ -158,7 +158,7 @@ export function RenewalModal() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>New Plan</Label>
               <Controller
@@ -199,7 +199,7 @@ export function RenewalModal() {
               {errors.paymentMode && <p className="text-xs text-red-500">{errors.paymentMode.message}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Amount (₹)</Label>
               <Input type="number" {...register('amount', { valueAsNumber: true })} />

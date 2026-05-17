@@ -284,10 +284,10 @@ export function GymLayout({ user }: UserProps) {
       </aside>
       <main className="flex-1 flex flex-col overflow-hidden">
         <header className="flex items-center justify-between h-14 px-4 lg:px-6 border-b bg-card shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden">
+                <Button variant="ghost" size="icon" className="lg:hidden shrink-0">
                   <Menu className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
@@ -301,28 +301,28 @@ export function GymLayout({ user }: UserProps) {
                 />
               </SheetContent>
             </Sheet>
-            <h2 className="text-sm font-semibold capitalize">{activeView.replace('-', ' ')}</h2>
+            <h2 className="text-sm font-semibold capitalize truncate">{activeView.replace('-', ' ')}</h2>
             {isSuperAdmin && (
-              <Badge variant="outline" className="text-xs gap-1">
+              <Badge variant="outline" className="text-xs gap-1 hidden sm:inline-flex">
                 <Shield className="w-3 h-3" /> Super Admin
               </Badge>
             )}
             {user.role === 'admin' && (
-              <Badge variant="outline" className="text-xs gap-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
+              <Badge variant="outline" className="text-xs gap-1 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 hidden sm:inline-flex">
                 Gym Owner
               </Badge>
             )}
             {user.role === 'staff' && (
-              <Badge variant="outline" className="text-xs gap-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+              <Badge variant="outline" className="text-xs gap-1 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 hidden sm:inline-flex">
                 Staff
               </Badge>
             )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Gym selector for super_admin */}
             {isSuperAdmin && gymList.length > 0 && (
               <Select value={activeGymId || ''} onValueChange={handleGymSwitch}>
-                <SelectTrigger className="w-[180px] h-8 text-xs">
+                <SelectTrigger className="w-[130px] sm:w-[180px] h-8 text-xs">
                   <ChevronsUpDown className="w-3 h-3 mr-1 text-muted-foreground" />
                   <SelectValue placeholder="Select gym..." />
                 </SelectTrigger>

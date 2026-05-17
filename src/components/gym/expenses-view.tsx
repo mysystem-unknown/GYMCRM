@@ -16,10 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Plus, Trash2, CalendarIcon, Receipt, TrendingDown, DollarSign, CreditCard, Loader2 } from 'lucide-react';
+import { Plus, Trash2, CalendarIcon, TrendingDown, DollarSign, CreditCard, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
@@ -117,7 +114,7 @@ export function ExpensesView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Expenses</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Expenses</h1>
           <p className="text-sm text-muted-foreground">{expenses.length} expense records</p>
         </div>
         <Button
@@ -130,36 +127,36 @@ export function ExpensesView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card className="border-0 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Total Cash Expenses</p>
-              <p className="text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalCash)}</p>
+          <CardContent className="p-3 sm:p-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total Cash Expenses</p>
+              <p className="text-lg sm:text-xl font-bold text-red-600 dark:text-red-400">{formatCurrency(totalCash)}</p>
             </div>
-            <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 ml-2">
               <DollarSign className="w-4 h-4 text-red-500" />
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Total UPI Expenses</p>
-              <p className="text-xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(totalUpi)}</p>
+          <CardContent className="p-3 sm:p-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total UPI Expenses</p>
+              <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(totalUpi)}</p>
             </div>
-            <div className="w-9 h-9 rounded-lg bg-orange-500/10 flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 ml-2">
               <CreditCard className="w-4 h-4 text-orange-500" />
             </div>
           </CardContent>
         </Card>
         <Card className="border-0 shadow-sm">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground">Total All Expenses</p>
-              <p className="text-xl font-bold">{formatCurrency(totalAll)}</p>
+          <CardContent className="p-3 sm:p-4 flex items-center justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground">Total All Expenses</p>
+              <p className="text-lg sm:text-xl font-bold">{formatCurrency(totalAll)}</p>
             </div>
-            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-muted flex items-center justify-center shrink-0 ml-2">
               <TrendingDown className="w-4 h-4 text-muted-foreground" />
             </div>
           </CardContent>
@@ -170,7 +167,7 @@ export function ExpensesView() {
       {showForm && (
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add New Expense</CardTitle>
+            <CardTitle className="text-sm sm:text-base">Add New Expense</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -223,17 +220,16 @@ export function ExpensesView() {
                   {errors.expenseDate && <p className="text-xs text-red-500">{errors.expenseDate.message}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Cash Amount (₹)</Label>
+                  <Label className="text-xs">Cash Amount</Label>
                   <Input type="number" {...register('cashAmount', { valueAsNumber: true })} placeholder="0" />
                   {errors.cashAmount && <p className="text-xs text-red-500">{errors.cashAmount.message}</p>}
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">UPI Amount (₹)</Label>
+                  <Label className="text-xs">UPI Amount</Label>
                   <Input type="number" {...register('upiAmount', { valueAsNumber: true })} placeholder="0" />
                   {errors.upiAmount && <p className="text-xs text-red-500">{errors.upiAmount.message}</p>}
                 </div>
               </div>
-              {/* Show refine error if at least one amount > 0 */}
               {errors.cashAmount?.message?.includes('At least one') && (
                 <p className="text-xs text-red-500">{errors.cashAmount.message}</p>
               )}
@@ -249,58 +245,81 @@ export function ExpensesView() {
         </Card>
       )}
 
-      {/* Expenses Table */}
+      {/* Expenses - Mobile Cards / Desktop Table */}
       <Card className="border-0 shadow-sm">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="hidden sm:table-cell">Note</TableHead>
-                <TableHead className="text-right">Cash</TableHead>
-                <TableHead className="text-right">UPI</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((_, j) => (
-                      <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : expenses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
-                    No expenses recorded yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                expenses.map((expense) => (
-                  <TableRow key={expense.id}>
-                    <TableCell className="text-sm">{formatDate(expense.expenseDate)}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">{expense.category}</Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell text-sm text-muted-foreground">{expense.note || '-'}</TableCell>
-                    <TableCell className="text-right text-sm">{expense.cashAmount > 0 ? formatCurrency(expense.cashAmount) : '-'}</TableCell>
-                    <TableCell className="text-right text-sm">{expense.upiAmount > 0 ? formatCurrency(expense.upiAmount) : '-'}</TableCell>
-                    <TableCell className="text-right font-semibold text-sm">{formatCurrency(expense.cashAmount + expense.upiAmount)}</TableCell>
-                    <TableCell className="text-right">
+        {loading ? (
+          <CardContent className="p-4 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded-lg" />
+            ))}
+          </CardContent>
+        ) : expenses.length === 0 ? (
+          <CardContent className="p-10 text-center text-muted-foreground">
+            No expenses recorded yet
+          </CardContent>
+        ) : (
+          <>
+            {/* Mobile: Card view */}
+            <div className="sm:hidden">
+              <div className="divide-y">
+                {expenses.map((expense) => (
+                  <div key={expense.id} className="flex items-center justify-between p-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px]">{expense.category}</Badge>
+                        <span className="text-xs text-muted-foreground">{formatDate(expense.expenseDate)}</span>
+                      </div>
+                      {expense.note && <p className="text-xs text-muted-foreground mt-1 truncate">{expense.note}</p>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className="text-sm font-semibold text-red-600 dark:text-red-400">
+                        {formatCurrency(expense.cashAmount + expense.upiAmount)}
+                      </span>
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => handleDelete(expense.id)}>
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3 h-3" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Desktop: Table view */}
+            <CardContent className="p-0 hidden sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left text-muted-foreground">
+                    <th className="px-4 py-3 font-medium">Date</th>
+                    <th className="px-4 py-3 font-medium">Category</th>
+                    <th className="px-4 py-3 font-medium hidden md:table-cell">Note</th>
+                    <th className="px-4 py-3 font-medium text-right">Cash</th>
+                    <th className="px-4 py-3 font-medium text-right">UPI</th>
+                    <th className="px-4 py-3 font-medium text-right">Total</th>
+                    <th className="px-4 py-3 font-medium text-right w-12"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.map((expense) => (
+                    <tr key={expense.id} className="border-b last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm">{formatDate(expense.expenseDate)}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="secondary" className="text-xs">{expense.category}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{expense.note || '-'}</td>
+                      <td className="px-4 py-3 text-right text-sm">{expense.cashAmount > 0 ? formatCurrency(expense.cashAmount) : '-'}</td>
+                      <td className="px-4 py-3 text-right text-sm">{expense.upiAmount > 0 ? formatCurrency(expense.upiAmount) : '-'}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-sm">{formatCurrency(expense.cashAmount + expense.upiAmount)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => handleDelete(expense.id)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          </>
+        )}
       </Card>
     </div>
   );

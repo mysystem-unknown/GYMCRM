@@ -198,7 +198,7 @@ export function StaffManagementView() {
           {users.map((u) => (
             <Card key={u.id} className="border-0 shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col gap-3 sm:gap-4">
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                       u.role === 'admin'
@@ -229,56 +229,58 @@ export function StaffManagementView() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    {/* Renewal Permission Toggle */}
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`renew-${u.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
-                        Allow Renewals
-                      </Label>
-                      <Switch
-                        id={`renew-${u.id}`}
-                        checked={u.canRenewMemberships}
-                        onCheckedChange={() => handleToggleRenewal(u.id, u.canRenewMemberships)}
-                        disabled={u.role === 'admin'}
-                      />
+                  <div className="flex flex-col gap-3 pt-3 border-t sm:pt-0 sm:border-0">
+                    <div className="flex items-center justify-between">
+                      {/* Renewal Permission Toggle */}
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`renew-${u.id}`} className="text-xs text-muted-foreground whitespace-nowrap">
+                          Renewals
+                        </Label>
+                        <Switch
+                          id={`renew-${u.id}`}
+                          checked={u.canRenewMemberships}
+                          onCheckedChange={() => handleToggleRenewal(u.id, u.canRenewMemberships)}
+                          disabled={u.role === 'admin'}
+                        />
+                      </div>
+
+                      {/* Active Toggle */}
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`active-${u.id}`} className="text-xs text-muted-foreground">
+                          Active
+                        </Label>
+                        <Switch
+                          id={`active-${u.id}`}
+                          checked={u.isActive}
+                          onCheckedChange={() => handleToggleActive(u.id, u.isActive)}
+                        />
+                      </div>
                     </div>
 
-                    {/* Active Toggle */}
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor={`active-${u.id}`} className="text-xs text-muted-foreground">
-                        Active
-                      </Label>
-                      <Switch
-                        id={`active-${u.id}`}
-                        checked={u.isActive}
-                        onCheckedChange={() => handleToggleActive(u.id, u.isActive)}
-                      />
-                    </div>
-
-                    {/* Reset Password */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleResetPassword(u.id, u.email)}
-                      disabled={resettingId === u.id}
-                      title="Reset Password"
-                    >
-                      <KeyRound className="w-4 h-4" />
-                    </Button>
-
-                    {/* Delete */}
-                    {isSuperAdmin && u.role !== 'admin' && (
+                    {/* Action buttons */}
+                    <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-500 hover:text-red-700"
-                        onClick={() => handleDelete(u.id, u.email)}
-                        title="Delete"
+                        className="h-8 w-8"
+                        onClick={() => handleResetPassword(u.id, u.email)}
+                        disabled={resettingId === u.id}
+                        title="Reset Password"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <KeyRound className="w-4 h-4" />
                       </Button>
-                    )}
+                      {isSuperAdmin && u.role !== 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500 hover:text-red-700"
+                          onClick={() => handleDelete(u.id, u.email)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

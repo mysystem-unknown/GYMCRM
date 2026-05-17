@@ -152,7 +152,7 @@ export function AddMemberModal() {
             <Input {...register('phone')} placeholder="Phone number" />
             {errors.phone && <p className="text-xs text-red-500">{errors.phone.message}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Plan</Label>
               <Controller
@@ -193,7 +193,7 @@ export function AddMemberModal() {
               {errors.paymentMode && <p className="text-xs text-red-500">{errors.paymentMode.message}</p>}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Amount (₹)</Label>
               <Input type="number" {...register('amount', { valueAsNumber: true })} />
