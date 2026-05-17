@@ -29,6 +29,9 @@ export function AuthGate() {
   useEffect(() => {
     const init = async () => {
       try {
+        // Ensure super admin exists with correct password before anything else
+        await fetch('/api/seed', { credentials: 'include' }).catch(() => {});
+
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
