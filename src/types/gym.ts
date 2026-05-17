@@ -33,6 +33,19 @@ export interface Gym {
   _count: { members: number };
 }
 
+export interface GymPlan {
+  id: string;
+  gymId: string;
+  name: string;
+  durationDays: number;
+  price: number;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { members: number };
+}
+
 export interface Member {
   id: string;
   memberId: string;
@@ -52,6 +65,7 @@ export interface Member {
   refundAmount: number;
   status: string;
   notes: string;
+  profileImageUrl?: string;
   createdAt: string;
   updatedAt: string;
   transactions?: Transaction[];

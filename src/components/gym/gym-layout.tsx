@@ -33,6 +33,7 @@ import {
   Shield,
   UserCog,
   ChevronsUpDown,
+  Tag,
 } from 'lucide-react';
 import { DashboardView } from './dashboard-view';
 import { MembersView } from './members-view';
@@ -42,6 +43,7 @@ import { SettingsView } from './settings-view';
 import { HowToUseView } from './how-to-use-view';
 import { GymManagementView } from './gym-management-view';
 import { StaffManagementView } from './staff-management-view';
+import { PlansView } from './plans-view';
 import { MemberProfile } from './member-profile';
 import { RenewalModal } from './renewal-modal';
 import { AddMemberModal } from './add-member-modal';
@@ -64,7 +66,7 @@ interface UserProps {
   user: UserData;
 }
 
-type ViewId = 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management';
+type ViewId = 'dashboard' | 'members' | 'expenses' | 'search' | 'settings' | 'how-to-use' | 'gym-management' | 'staff-management' | 'plans';
 
 const allNavItems: { id: ViewId; label: string; icon: React.ElementType; roles: string[] }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['super_admin', 'admin', 'staff'] },
@@ -74,6 +76,7 @@ const allNavItems: { id: ViewId; label: string; icon: React.ElementType; roles: 
   { id: 'settings', label: 'Settings', icon: Settings, roles: ['super_admin', 'admin'] },
   { id: 'gym-management', label: 'Gyms', icon: Building2, roles: ['super_admin'] },
   { id: 'staff-management', label: 'Staff', icon: UserCog, roles: ['super_admin', 'admin'] },
+  { id: 'plans', label: 'Plans', icon: Tag, roles: ['super_admin', 'admin'] },
 ];
 
 function getNavItems(role: string) {
@@ -251,7 +254,7 @@ export function GymLayout({ user }: UserProps) {
     if (useGymStore.getState().showHowToUse) return <HowToUseView onBack={() => setShowHowToUse(false)} />;
 
     // Super admin gym-dependent views require a gym to be selected
-    const gymDependentViews = ['dashboard', 'members', 'expenses', 'search', 'settings', 'staff-management'];
+    const gymDependentViews = ['dashboard', 'members', 'expenses', 'search', 'settings', 'staff-management', 'plans'];
     if (isSuperAdmin && gymDependentViews.includes(activeView) && !activeGymId) {
       return <NoGymSelected />;
     }
@@ -264,6 +267,7 @@ export function GymLayout({ user }: UserProps) {
       case 'settings': return isAdmin ? <SettingsView /> : <div className="text-muted-foreground p-8">Access denied</div>;
       case 'gym-management': return isSuperAdmin ? <GymManagementView /> : <div className="text-muted-foreground p-8">Access denied</div>;
       case 'staff-management': return isAdmin ? <StaffManagementView /> : <div className="text-muted-foreground p-8">Access denied</div>;
+      case 'plans': return isAdmin ? <PlansView /> : <div className="text-muted-foreground p-8">Access denied</div>;
       default: return <DashboardView />;
     }
   };

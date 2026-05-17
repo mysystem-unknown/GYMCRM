@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useGymStore } from '@/store/gym-store';
 import { fetchAPI, formatCurrency, formatDate, getStatusColor } from '@/lib/api';
 import type { Transaction } from '@/types/gym';
@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  ArrowLeft, User, Phone, Calendar, CreditCard, RefreshCw,
+  ArrowLeft, Phone, Calendar, CreditCard, RefreshCw,
   AlertCircle, History, Clock,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { ImageUpload } from './image-upload';
 
 export function MemberProfile() {
   const selectedMember = useGymStore((s) => s.selectedMember);
@@ -20,9 +21,18 @@ export function MemberProfile() {
   const setShowRenewalModal = useGymStore((s) => s.setShowRenewalModal);
   const user = useGymStore((s) => s.user);
   const canRenew = user?.role === 'admin' || user?.role === 'super_admin' || user?.canRenewMemberships === true;
+  const canManage = user?.role === 'admin' || user?.role === 'super_admin';
   const activeGymId = useGymStore((s) => s.activeGymId);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profileUrl, setProfileUrl] = useState<string>('');
+
+  // Sync profileUrl from selected member
+  useEffect(() => {
+    if (selectedMember) {
+      setProfileUrl(selectedMember.profileImageUrl || '');
+    }
+  }, [selectedMember]);
 
   useEffect(() => {
     if (selectedMember) {
@@ -47,6 +57,20 @@ export function MemberProfile() {
     }
   };
 
+  const handleImageUploaded = useCallback((url: string) => {
+    setProfileUrl(url);
+    if (selectedMember) {
+      setSelectedMember({ ...selectedMember, profileImageUrl: url });
+    }
+  }, [selectedMember, setSelectedMember]);
+
+  const handleImageRemoved = useCallback(() => {
+    setProfileUrl('');
+    if (selectedMember) {
+      setSelectedMember({ ...selectedMember, profileImageUrl: '' });
+    }
+  }, [selectedMember, setSelectedMember]);
+
   if (!selectedMember) return null;
 
   return (
@@ -60,14 +84,27 @@ export function MemberProfile() {
       <Card className="border-0 shadow-sm overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-6 text-white">
           <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-bold">{selectedMember.name}</h1>
-                <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedMember.status)}`}>
-                  {selectedMember.status}
-                </span>
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <ImageUpload
+                  currentImageUrl={profileUrl}
+                  memberId={selectedMember.id}
+                  memberName={selectedMember.name}
+                  onUploaded={handleImageUploaded}
+                  onRemoved={handleImageRemoved}
+                  size="lg"
+                  readOnly={!canManage}
+                />
               </div>
-              <p className="text-emerald-100 text-sm">{selectedMember.memberId}</p>
+              <div>
+                <div className="flex items-center gap-3 mb-1">
+                  <h1 className="text-2xl font-bold">{selectedMember.name}</h1>
+                  <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedMember.status)}`}>
+                    {selectedMember.status}
+                  </span>
+                </div>
+                <p className="text-emerald-100 text-sm">{selectedMember.memberId}</p>
+              </div>
             </div>
             <div className="flex gap-2">
               {canRenew && (
@@ -143,7 +180,7 @@ export function MemberProfile() {
                         ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
                         : 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400'
                     }`}>
-                      {t.paymentMode === 'Cash' ? '₹' : '📱'}
+                      {t.paymentMode === 'Cash' ? '\u20B9' : '\uD83D\uDCF1'}
                     </div>
                     <div>
                       <p className="text-sm font-medium">{t.plan} - {t.duration} month{t.duration > 1 ? 's' : ''}</p>

@@ -62,6 +62,15 @@ export const createStaffSchema = z.object({
 });
 export type CreateStaffFormValues = z.infer<typeof createStaffSchema>;
 
+// Gym Plan schema
+export const gymPlanSchema = z.object({
+  name: z.string().min(1, 'Plan name is required'),
+  durationDays: z.number().int().min(1, 'Duration must be at least 1 day'),
+  price: z.number().min(0, 'Price must be non-negative'),
+  description: z.string().optional().default(''),
+});
+export type GymPlanFormValues = z.infer<typeof gymPlanSchema>;
+
 // Settings schema
 export const settingsSchema = z.object({
   openingCashBalance: z.number().min(0, 'Must be non-negative'),
