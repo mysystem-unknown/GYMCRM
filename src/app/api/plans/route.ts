@@ -15,9 +15,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ plans: [] });
     }
 
+    // Auto-seed default plans if the gym has none
+    const existingPlans = await db.gymPlan.count({ where: { gymId: targetGymId } });
+    if (existingPlans === 0) {
+      const defaultPlans = [
+        { name: '1 Month', durationDays: 30, price: 1500, description: 'Standard monthly membership' },
+        { name: '3 Months', durationDays: 90, price: 3500, description: 'Quarterly membership' },
+        { name: '6 Months', durationDays: 180, price: 4500, description: 'Half-yearly membership' },
+        { name: '1 Year', durationDays: 365, price: 8000, description: 'Annual membership' },
+      ];
+      await db.gymPlan.createMany({
+        data: defaultPlans.map((p) => ({
+          gymId: targetGymId,
+          name: p.name,
+          durationDays: p.durationDays,
+          price: p.price,
+          description: p.description,
+          isDefault: true,
+          isActive: true,
+        })),
+      });
+    }
+
     const plans = await db.gymPlan.findMany({
       where: { gymId: targetGymId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       include: { _count: { select: { members: true } } },
     });
 

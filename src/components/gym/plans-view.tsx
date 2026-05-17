@@ -139,9 +139,16 @@ export function PlansView() {
                       <Tag className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="font-semibold">{plan.name}</h3>
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="font-semibold">{plan.name}</h3>
+                        {plan.isDefault && (
+                          <Badge variant="secondary" className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                            Default
+                          </Badge>
+                        )}
+                      </div>
                       {!plan.isActive && (
-                        <Badge variant="outline" className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800">
+                        <Badge variant="outline" className="text-xs bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 mt-1">
                           Inactive
                         </Badge>
                       )}
@@ -303,6 +310,9 @@ function PlanFormDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{plan ? 'Edit Plan' : 'Create New Plan'}</DialogTitle>
+          {plan?.isDefault && (
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">This is a default plan. You can edit its price and duration.</p>
+          )}
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">

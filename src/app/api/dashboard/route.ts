@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
       refundedMembers: 0, totalRevenue: 0, monthlyRevenue: 0, monthlyCash: 0,
       monthlyUpi: 0, monthlyExpenses: 0, monthlyCashExpense: 0, monthlyUpiExpense: 0,
       monthlyProfit: 0, totalCash: 0, totalUpi: 0, totalPending: 0, totalRefund: 0,
+      monthlyRefund: 0,
       openingCash: 0, openingUpi: 0, finalCashBalance: 0, finalUpiBalance: 0,
       finalBalance: 0, revenueByMonth: [], recentTransactions: [],
     });
@@ -104,6 +105,13 @@ export async function GET(request: NextRequest) {
     const monthlyCashExpense = monthlyExpAggregate._sum.cashAmount || 0;
     const monthlyUpiExpense = monthlyExpAggregate._sum.upiAmount || 0;
 
+    // Monthly refund aggregations (refunds made this month)
+    const monthlyRefundAggregate = await db.member.aggregate({
+      where: { gymId: activeGymId, status: 'Refunded', refundDate: { gte: monthStart, lt: monthEnd } },
+      _sum: { refundAmount: true },
+    });
+    const monthlyRefund = monthlyRefundAggregate._sum.refundAmount || 0;
+
     // Total (all-time) expense aggregations for correct balance calculation
     const totalExpAggregate = await db.expense.aggregate({
       where: { gymId: activeGymId },
@@ -158,8 +166,8 @@ export async function GET(request: NextRequest) {
       totalMembers, activeMembers, expiringSoon, expiredMembers, refundedMembers,
       totalRevenue, monthlyRevenue, monthlyCash, monthlyUpi,
       monthlyExpenses: monthlyExpenseTotal, monthlyCashExpense, monthlyUpiExpense,
-      monthlyProfit: monthlyRevenue - monthlyExpenseTotal,
-      totalCash, totalUpi, totalPending, totalRefund,
+      monthlyProfit: monthlyRevenue - monthlyExpenseTotal - monthlyRefund,
+      totalCash, totalUpi, totalPending, totalRefund, monthlyRefund,
       openingCash, openingUpi, finalCashBalance, finalUpiBalance, finalBalance,
       revenueByMonth, recentTransactions,
     });

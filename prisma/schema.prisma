@@ -80,6 +80,7 @@ model Member {
   totalUpi            Float    @default(0)
   pendingPayment      Float    @default(0)
   refundAmount        Float    @default(0)
+  refundDate          DateTime?
   status              String   @default("Active")
   notes               String   @default("")
   profileImageUrl     String   @default("")
@@ -135,6 +136,7 @@ model GymPlan {
   price         Float    @default(0)
   description   String   @default("")
   isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

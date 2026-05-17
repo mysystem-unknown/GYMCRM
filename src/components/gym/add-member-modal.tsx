@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from 'sonner';
@@ -23,15 +23,8 @@ interface PlanOption {
   months: number;
   days: number;
   price: number;
-  planId?: string;
+  planId: string;
 }
-
-const defaultPlanOptions: PlanOption[] = [
-  { label: '1 Month', months: 1, days: 0, price: 1500 },
-  { label: '3 Months', months: 3, days: 0, price: 3500 },
-  { label: '6 Months', months: 6, days: 0, price: 4500 },
-  { label: '1 Year', months: 12, days: 0, price: 8000 },
-];
 
 export function AddMemberModal() {
   const [open, setOpen] = useState(true);
@@ -54,25 +47,15 @@ export function AddMemberModal() {
       .finally(() => setPlansLoading(false));
   }, [activeGymId]);
 
-  // Merge default + custom plans
+  // Merge all database plans (defaults are auto-seeded by the API)
   const allPlanOptions = useMemo<PlanOption[]>(() => {
-    const custom: PlanOption[] = customPlans.map((p) => ({
+    return customPlans.map((p) => ({
       label: p.name,
       months: Math.round(p.durationDays / 30.44),
       days: p.durationDays,
       price: p.price,
       planId: p.id,
     }));
-    // Deduplicate by label
-    const seen = new Set<string>();
-    const merged: PlanOption[] = [];
-    for (const p of [...custom, ...defaultPlanOptions]) {
-      if (!seen.has(p.label)) {
-        seen.add(p.label);
-        merged.push(p);
-      }
-    }
-    return merged;
   }, [customPlans]);
 
   const {
@@ -87,9 +70,9 @@ export function AddMemberModal() {
     defaultValues: {
       name: '',
       phone: '',
-      membershipPlan: allPlanOptions[0]?.label || '1 Month',
+      membershipPlan: allPlanOptions[0]?.label || '',
       paymentMode: 'UPI',
-      amount: allPlanOptions[0]?.price || 1500,
+      amount: allPlanOptions[0]?.price || 0,
       joinDate: new Date(),
     },
   });
@@ -99,13 +82,9 @@ export function AddMemberModal() {
   const amount = watch('amount');
 
   const expiryDate = useMemo(() => {
-    if (!joinDate) return null;
+    if (!joinDate || !selectedPlan) return null;
     const d = new Date(joinDate);
-    if (selectedPlan?.days && selectedPlan.days > 0) {
-      d.setDate(d.getDate() + selectedPlan.days);
-    } else {
-      d.setMonth(d.getMonth() + (selectedPlan?.months || 1));
-    }
+    d.setDate(d.getDate() + selectedPlan.days);
     return d;
   }, [joinDate, selectedPlan]);
 
@@ -132,7 +111,7 @@ export function AddMemberModal() {
           phoneNumber: data.phone.trim(),
           membershipPlan: data.membershipPlan,
           durationMonths,
-          durationDays: selectedPlan.days > 0 ? selectedPlan.days : undefined,
+          durationDays: selectedPlan.days,
           planPrice: selectedPlan.price,
           planId: selectedPlan.planId || undefined,
           paymentMode: data.paymentMode,
@@ -183,29 +162,13 @@ export function AddMemberModal() {
                   <Select value={field.value} onValueChange={handlePlanChange}>
                     <SelectTrigger><SelectValue placeholder="Select plan" /></SelectTrigger>
                     <SelectContent>
-                      {customPlans.filter((p) => p.isActive).length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Custom Plans</SelectLabel>
-                          {allPlanOptions
-                            .filter((p) => p.planId)
-                            .map((p) => (
-                              <SelectItem key={p.label} value={p.label}>
-                                {p.label} - ₹{p.price}
-                                {p.days > 0 && (
-                                  <span className="text-muted-foreground ml-1 text-xs">({p.days}d)</span>
-                                )}
-                              </SelectItem>
-                            ))}
-                        </SelectGroup>
-                      )}
-                      <SelectGroup>
-                        <SelectLabel className="text-xs font-semibold text-muted-foreground">Default Plans</SelectLabel>
-                        {allPlanOptions
-                          .filter((p) => !p.planId)
-                          .map((p) => (
-                            <SelectItem key={p.label} value={p.label}>{p.label} - ₹{p.price}</SelectItem>
-                          ))}
-                      </SelectGroup>
+                      {allPlanOptions
+                        .map((p) => (
+                          <SelectItem key={p.label} value={p.label}>
+                            {p.label} - ₹{p.price}
+                            <span className="text-muted-foreground ml-1 text-xs">({p.days}d)</span>
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 )}

@@ -41,6 +41,7 @@ export interface GymPlan {
   price: number;
   description: string;
   isActive: boolean;
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
   _count?: { members: number };
@@ -111,6 +112,7 @@ export interface DashboardData {
   totalUpi: number;
   totalPending: number;
   totalRefund: number;
+  monthlyRefund: number;
   openingCash: number;
   openingUpi: number;
   finalCashBalance: number;

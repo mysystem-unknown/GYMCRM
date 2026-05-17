@@ -1,53 +1,38 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Fix "Failed to create plan" and "Failed to upload image" - Full diagnostic and fix
+Task: Fix dashboard monthly profit to subtract refund amounts + Make default plans editable in Plans section
 
 Work Log:
-- Read all relevant files: gym-layout.tsx, gym-store.ts, member-profile.tsx, plans-view.tsx, image-upload.tsx, prisma/schema.prisma, types/gym.ts, lib/schemas.ts, lib/api.ts, lib/auth.ts, lib/db.ts, api/plans/route.ts, api/upload/route.ts
-- Identified 4 critical bugs:
-  1. prisma/schema.prisma MISSING GymPlan model (db.gymPlan calls fail)
-  2. Member model MISSING profileImageUrl field (upload API can't save URL)
-  3. gym-store.ts activeView type MISSING 'plans' (navigation crashes)
-  4. middleware.ts causing POST request crashes in Next.js 16
-- Fixed all 4 bugs, verified plans + image upload work end-to-end
+- Analyzed dashboard API: `monthlyProfit = monthlyRevenue - monthlyExpenses` — refunds were completely ignored
+- Found that `refundAmount` on Member model was never used in profit calculation
+- Added `refundDate` field to Member model in Prisma schema to track when refunds occur (needed for monthly calculation)
+- Updated `/api/members` PUT handler to set `refundDate = new Date()` when a refund is processed
+- Updated `/api/dashboard` GET handler to:
+  - Query monthly refunds: `member.aggregate({ where: { status: 'Refunded', refundDate: { gte: monthStart, lt: monthEnd } } })`
+  - Changed profit formula: `monthlyProfit = monthlyRevenue - monthlyExpenses - monthlyRefund`
+  - Added `monthlyRefund` to the API response
+- Updated `DashboardData` type in `src/types/gym.ts` to include `monthlyRefund`
+- Updated `dashboard-view.tsx`:
+  - Added "Monthly Refund" stat card
+  - Updated Monthly Profit subtitle to show both Expenses and Refunds breakdown
+  - Changed grid to 5 columns to accommodate new card
+
+- For default plans:
+  - Added `isDefault` boolean field to GymPlan model in Prisma schema
+  - Updated `GymPlan` interface in `src/types/gym.ts` to include `isDefault`
+  - Updated `/api/plans` GET handler to auto-seed 4 default plans (1 Month, 3 Months, 6 Months, 1 Year) when a gym has no plans
+  - Default plans are marked with `isDefault: true` and sorted first in the API response
+  - Updated `plans-view.tsx` to show a blue "Default" badge on default plans
+  - Updated plan edit dialog to show info text for default plans
+  - Removed hardcoded `defaultPlanOptions` from both `add-member-modal.tsx` and `renewal-modal.tsx`
+  - Both modals now use ONLY database plans (fetched via `/api/plans`)
+  - Simplified plan dropdown (no more Custom/Default grouping since all plans are in the DB)
 
 Stage Summary:
-- All 4 root causes fixed, both features fully working
----
-Task ID: 2
-Agent: Main Agent
-Task: Connect custom GymPlans to Add/Renew, fix refund in dashboard, add refund amount in edit
-
-Work Log:
-- Read: add-member-modal.tsx, renewal-modal.tsx, edit-member-modal.tsx, dashboard-view.tsx, api/members/route.ts, api/transactions/route.ts, api/dashboard/route.ts, api/expenses/route.ts
-- Issue 1: Custom plans not in Add/Renew modals - hardcoded planOptions only
-- Issue 2: Refund amount not in dashboard - edit modal never sent refundAmount to API
-- Issue 3: Edit modal had no refund amount input field
-
-Fixes applied:
-1. lib/schemas.ts - Added refundAmount to editMemberSchema
-2. add-member-modal.tsx - Complete rewrite:
-   - Fetches custom GymPlans from /api/plans on mount
-   - Merges custom plans (with days) + default plans (with months) in dropdown
-   - Two sections: "Custom Plans" and "Default Plans" in select
-   - Expiry calculated via days for custom plans, months for defaults
-   - Sends planId + durationDays to API
-3. renewal-modal.tsx - Same changes as add-member-modal
-4. edit-member-modal.tsx - Added:
-   - Conditional refund amount input when status === 'Refunded'
-   - Amber warning box with current pending payment display
-   - Sends refundAmount + adjusted pendingPayment to API
-5. api/members POST - Now accepts planId + durationDays, calculates expiry using days
-6. api/members PUT - Now handles refundAmount (accumulates) + pendingPayment
-7. api/transactions POST - Now accepts planId + durationDays, calculates expiry using days
-
-Verified:
-- Dashboard totalRefund shows correctly after refund (tested ₹500)
-- Refunded member count updates in dashboard
-- Custom plans appear in plan dropdown (tested "4 month" 120-day plan)
-- All API endpoints return correct data
-
-Stage Summary:
-- 3 issues fixed: custom plans connected, refund amount in dashboard, refund input in edit
-- 7 files modified across frontend components + backend API routes + schemas
+- Dashboard now correctly deducts refunds from monthly profit
+- Monthly Refund card added to dashboard showing current month's refund total
+- Default plans (1 Month, 3 Months, 6 Months, 1 Year) are auto-seeded when a gym is created
+- All plans are stored in the database and can be edited by gym owners via the Plans page
+- Build passes successfully with no errors
+- Files modified: prisma/schema.prisma, src/app/api/dashboard/route.ts, src/app/api/members/route.ts, src/app/api/plans/route.ts, src/types/gym.ts, src/components/gym/dashboard-view.tsx, src/components/gym/plans-view.tsx, src/components/gym/add-member-modal.tsx, src/components/gym/renewal-modal.tsx

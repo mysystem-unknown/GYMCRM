@@ -150,11 +150,12 @@ export async function PUT(request: NextRequest) {
 
     const updateData: Record<string, unknown> = { name: name.trim(), ...data };
 
-    // Handle refund amount - add to existing refundAmount
+    // Handle refund amount - add to existing refundAmount and set refundDate
     if (typeof refundAmount === 'number' && refundAmount > 0) {
       const current = await db.member.findUnique({ where: { id } });
       if (current) {
         updateData.refundAmount = (current.refundAmount || 0) + refundAmount;
+        updateData.refundDate = new Date(); // Track when the refund happened
       }
     }
 

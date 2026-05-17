@@ -86,16 +86,21 @@ export function DashboardView() {
       </div>
 
       {/* Revenue & Balance Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Monthly Revenue" value={formatCurrency(data.monthlyRevenue)} icon={TrendingUp} color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
         <StatCard
           title="Monthly Profit"
           value={formatCurrency(data.monthlyProfit)}
           icon={data.monthlyProfit >= 0 ? TrendingUp : TrendingDown}
           color={data.monthlyProfit >= 0 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-red-500/10 text-red-600 dark:text-red-400'}
-          subtitle={data.monthlyExpenses > 0 ? `Expenses: ${formatCurrency(data.monthlyExpenses)}` : undefined}
+          subtitle={
+            (data.monthlyExpenses > 0 || data.monthlyRefund > 0)
+              ? `Expenses: ${formatCurrency(data.monthlyExpenses)}${data.monthlyRefund > 0 ? ` | Refunds: ${formatCurrency(data.monthlyRefund)}` : ''}`
+              : undefined
+          }
         />
         <StatCard title="Pending Payments" value={formatCurrency(data.totalPending)} icon={AlertTriangle} color="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
+        <StatCard title="Monthly Refund" value={formatCurrency(data.monthlyRefund)} icon={RefreshCcw} color="bg-red-500/10 text-red-600 dark:text-red-400" />
         <StatCard title="Total Refund" value={formatCurrency(data.totalRefund)} icon={RefreshCcw} color="bg-sky-500/10 text-sky-600 dark:text-sky-400" />
       </div>
 
