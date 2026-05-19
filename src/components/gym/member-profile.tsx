@@ -57,17 +57,36 @@ export function MemberProfile() {
     }
   };
 
-  const handleImageUploaded = useCallback((url: string) => {
+  const handleImageUploaded = useCallback(async (url: string) => {
     setProfileUrl(url);
     if (selectedMember) {
       setSelectedMember({ ...selectedMember, profileImageUrl: url });
+      // Persist to database immediately
+      try {
+        await fetchAPI('/api/members', {
+          method: 'PUT',
+          body: JSON.stringify({ id: selectedMember.id, name: selectedMember.name, profileImageUrl: url }),
+        });
+      } catch (err) {
+        console.error('[profile] Failed to save image URL to DB:', err);
+        toast.error('Image uploaded but failed to save permanently.');
+      }
     }
   }, [selectedMember, setSelectedMember]);
 
-  const handleImageRemoved = useCallback(() => {
+  const handleImageRemoved = useCallback(async () => {
     setProfileUrl('');
     if (selectedMember) {
       setSelectedMember({ ...selectedMember, profileImageUrl: '' });
+      // Persist to database
+      try {
+        await fetchAPI('/api/members', {
+          method: 'PUT',
+          body: JSON.stringify({ id: selectedMember.id, name: selectedMember.name, profileImageUrl: '' }),
+        });
+      } catch (err) {
+        console.error('[profile] Failed to clear image URL in DB:', err);
+      }
     }
   }, [selectedMember, setSelectedMember]);
 
