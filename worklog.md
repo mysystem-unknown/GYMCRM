@@ -1,38 +1,41 @@
 ---
 Task ID: 1
 Agent: main
-Task: Fix member profile image upload - "Unexpected token 'S', 'Server act...' is not valid JSON"
+Task: Fix member profile image upload - persistent JSON parse error
 
-Work Log:
-- Diagnosed: /api/upload route was COMPLETELY MISSING (file lost from previous session)
-- The running dev server (pid 677) had OLD code without the upload route
-- Next.js returned HTML 404 page for /api/upload, causing JSON parse error
-- Recreated src/app/api/upload/route.ts with all fixes
-- Updated member-profile.tsx to persist profileImageUrl to database
-- Updated package.json with postinstall script
-- Updated .gitignore for uploads directory
+Root Cause:
+- The /api/upload route file kept getting lost between session continuations
+- When the route doesn't exist, Next.js returns HTML 404 page
+- Frontend's res.json() crashes with "Unexpected token 'S', 'Server act...' is not valid JSON"
+- Additionally, image-upload.tsx used data.url but backend returns data.imageUrl
 
-Changes Made:
-1. src/app/api/upload/route.ts (recreated)
-   - export const runtime = "nodejs"
-   - POST: FormData parsing, auth, validation, sharp processing, saves to public/uploads/
+Files Created/Fixed:
+1. src/app/api/upload/route.ts (RECREATED via bash heredoc for persistence)
+   - export const runtime = 'nodejs' (no edge-runtime)
+   - POST: Native FormData parsing, auth, validation, saves to public/uploads/
    - DELETE: removes files by memberId or imageUrl
-   - All JSON responses with try/catch
-   - Safe FormData parsing (handles empty body edge case)
+   - No sharp dependency (removed to reduce memory footprint)
+   - All JSON responses, full try/catch
 
-2. src/components/gym/member-profile.tsx
-   - handleImageUploaded: now async, persists to DB via PUT /api/members
-   - handleImageRemoved: now async, clears in DB via PUT /api/members
+2. src/components/gym/image-upload.tsx
+   - Fixed: data.url → data.imageUrl (matches backend response)
+   - Added: content-type check before JSON parse
+   - Added: safe JSON parsing with fallback error messages
 
-3. package.json
+3. src/components/gym/member-profile.tsx
+   - handleImageUploaded: async, persists profileImageUrl to DB via PUT /api/members
+   - handleImageRemoved: async, clears profileImageUrl in DB
+
+4. package.json
    - Added "postinstall": "prisma generate"
-   - Build script runs "prisma generate" first
+   - Build includes "prisma generate" as first step
 
-4. .gitignore
-   - Added /public/uploads/* (excludes user uploads from git)
-   - Created public/uploads/.gitkeep
+5. .gitignore
+   - Added /public/uploads/* exclusion with .gitkeep preserved
 
-Verification:
-- All 6 API tests passed (auth, validation, upload, serve, delete)
-- All responses are valid JSON
-- Server running on port 3000, Caddy proxy on port 81
+6. public/uploads/.gitkeep created
+
+Build verified:
+- Production build succeeds
+- /api/upload registered as dynamic route
+- Build output includes route.js in .next/server/app/api/upload/

@@ -65,13 +65,26 @@ export function ImageUpload({
         body: formData,
       });
 
-      const data = await res.json();
+      // Safely parse JSON - handle cases where server returns non-JSON
+      let data: Record<string, unknown>;
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(`Server returned non-JSON response (HTTP ${res.status}). Please try again.`);
+      }
+      data = await res.json();
+
       if (!res.ok) {
-        throw new Error(data.error || 'Upload failed');
+        throw new Error((data.error as string) || 'Upload failed');
+      }
+
+      const imageUrl = (data.imageUrl as string) || (data.url as string) || '';
+      if (!imageUrl) {
+        throw new Error('Server did not return an image URL.');
       }
 
       toast.success('Photo updated');
-      onUploaded?.(data.url);
+      onUploaded?.(imageUrl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to upload image');
     } finally {
@@ -148,8 +161,14 @@ export function ImageUpload({
         credentials: 'include',
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Failed to remove' }));
-        throw new Error(data.error || 'Failed to remove');
+        let errorMsg = 'Failed to remove photo';
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch {
+          // response was not JSON
+        }
+        throw new Error(errorMsg);
       }
       toast.success('Photo removed');
       onRemoved?.();
