@@ -83,9 +83,8 @@ export async function POST(request: NextRequest) {
           overwrite: true,
           resource_type: 'image',
           transformation: [
-            { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good' },
+            { width: 1200, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' },
           ],
-          format: 'auto',
         },
         (error: Error | undefined, result: Record<string, unknown>) => {
           if (error) return reject(error);
