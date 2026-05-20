@@ -1,35 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir, unlink, readdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 import { requireAuth } from '@/lib/auth';
 
-// Force Node.js runtime
+// Force Node.js runtime (Cloudinary SDK requires Node)
 export const runtime = 'nodejs';
 
-const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const CLOUDINARY_FOLDER = 'gymcrm/profiles';
 
-async function ensureUploadDir(): Promise<void> {
-  if (!existsSync(UPLOAD_DIR)) {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-  }
-}
-
-function getExt(mimeType: string): string {
-  if (mimeType === 'image/png') return '.png';
-  if (mimeType === 'image/webp') return '.webp';
-  return '.jpg';
+/**
+ * Lazily initialise Cloudinary so the config is only loaded at request time
+ * (avoids crashing at build time if env vars are missing).
+ */
+function getCloudinary() {
+  const { v2 } = require('cloudinary');
+  v2.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+  return v2;
 }
 
 export async function POST(request: NextRequest) {
   try {
+    // --- Auth ---
     const { error: authError } = await requireAuth();
     if (authError) return authError;
 
-    await ensureUploadDir();
-
+    // --- Parse multipart body ---
     let formData: FormData;
     try {
       formData = await request.formData();
@@ -45,59 +45,117 @@ export async function POST(request: NextRequest) {
     }
 
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Only JPG, PNG, and WEBP allowed.' }, { status: 400 });
+      return NextResponse.json({ error: 'Only JPG, PNG, WEBP, and GIF allowed.' }, { status: 400 });
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ error: 'File too large (max 5MB).' }, { status: 400 });
+      return NextResponse.json({ error: 'File too large (max 5 MB).' }, { status: 400 });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const ext = getExt(file.type);
-    const ts = Date.now();
-    const rand = Math.random().toString(36).substring(2, 8);
-    const filename = memberId ? `${memberId}_${ts}_${rand}${ext}` : `${ts}_${rand}${ext}`;
+    if (!memberId) {
+      return NextResponse.json({ error: 'memberId is required.' }, { status: 400 });
+    }
 
-    await writeFile(path.join(UPLOAD_DIR, filename), buffer);
+    // --- Validate Cloudinary env vars ---
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('[upload] Missing Cloudinary env vars');
+      return NextResponse.json({ error: 'Cloudinary is not configured. Contact admin.' }, { status: 500 });
+    }
 
-    return NextResponse.json({ success: true, imageUrl: `/uploads/${filename}`, filename, size: buffer.length });
+    // --- Convert File → base64 for Cloudinary upload_stream ---
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+
+    // --- Upload to Cloudinary ---
+    const cloudinary = getCloudinary();
+
+    // Use memberId as the public_id so each member has exactly one profile image.
+    // overwrite:true means re-uploads replace the previous image.
+    const publicId = `gymcrm/profiles/${memberId}`;
+
+    const uploadResult = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      cloudinary.uploader.upload(
+        base64,
+        {
+          public_id: publicId,
+          folder: CLOUDINARY_FOLDER,
+          overwrite: true,
+          resource_type: 'image',
+          transformation: [
+            { width: 1200, height: 1200, crop: 'limit', quality: 'auto:good' },
+          ],
+          format: 'auto',
+        },
+        (error: Error | undefined, result: Record<string, unknown>) => {
+          if (error) return reject(error);
+          resolve(result);
+        },
+      );
+    });
+
+    const secureUrl = uploadResult.secure_url as string;
+    const returnedPublicId = uploadResult.public_id as string;
+    const format = uploadResult.format as string;
+    const bytes = uploadResult.bytes as number;
+
+    if (!secureUrl) {
+      console.error('[upload] Cloudinary returned no secure_url:', uploadResult);
+      return NextResponse.json({ error: 'Upload succeeded but URL is missing.' }, { status: 500 });
+    }
+
+    console.log(`[upload] Uploaded ${bytes} bytes as ${returnedPublicId}`);
+
+    return NextResponse.json({
+      success: true,
+      imageUrl: secureUrl,
+      publicId: returnedPublicId,
+      format,
+      size: bytes,
+    });
   } catch (err) {
     console.error('[upload] POST error:', err);
-    return NextResponse.json({ error: 'Upload failed.' }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Upload failed.' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    // --- Auth ---
     const { error: authError } = await requireAuth();
     if (authError) return authError;
 
+    // --- Validate Cloudinary env vars ---
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('[upload] Missing Cloudinary env vars');
+      return NextResponse.json({ error: 'Cloudinary is not configured. Contact admin.' }, { status: 500 });
+    }
+
+    // --- Get memberId from query ---
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get('memberId');
-    const imageUrl = searchParams.get('imageUrl');
 
-    if (!memberId && !imageUrl) {
-      return NextResponse.json({ error: 'Provide memberId or imageUrl.' }, { status: 400 });
+    if (!memberId) {
+      return NextResponse.json({ error: 'memberId is required.' }, { status: 400 });
     }
 
-    await ensureUploadDir();
-    let deleted = false;
+    // --- Delete from Cloudinary ---
+    const cloudinary = getCloudinary();
+    const publicId = `gymcrm/profiles/${memberId}`;
 
-    if (imageUrl) {
-      const fn = imageUrl.startsWith('/uploads/') ? imageUrl.slice(9) : imageUrl;
-      try { await unlink(path.join(UPLOAD_DIR, fn)); deleted = true; } catch {}
-    } else if (memberId) {
-      const files = await readdir(UPLOAD_DIR);
-      for (const f of files) {
-        if (f.startsWith(`${memberId}_`)) {
-          try { await unlink(path.join(UPLOAD_DIR, f)); deleted = true; } catch {}
-        }
-      }
-    }
+    const deleteResult = await new Promise<Record<string, unknown>>((resolve, reject) => {
+      cloudinary.uploader.destroy(publicId, { resource_type: 'image' }, (error: Error | undefined, result: Record<string, unknown>) => {
+        if (error) return reject(error);
+        resolve(result);
+      });
+    });
 
-    return NextResponse.json({ success: true, deleted });
+    const result = deleteResult.result as string; // 'ok' | 'not found'
+    console.log(`[upload] Delete ${publicId}: ${result}`);
+
+    return NextResponse.json({ success: true, deleted: result === 'ok', publicId });
   } catch (err) {
     console.error('[upload] DELETE error:', err);
-    return NextResponse.json({ error: 'Delete failed.' }, { status: 500 });
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Delete failed.' }, { status: 500 });
   }
 }

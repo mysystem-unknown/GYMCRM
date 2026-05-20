@@ -36,3 +36,27 @@ Notes:
 - All code is correct and production-ready
 - Image serve confirmed working with pre-existing files
 - DB persistence confirmed working (write + re-read verified)
+---
+Task ID: 1
+Agent: Main
+Task: Replace local filesystem upload with Cloudinary-based image upload
+
+Work Log:
+- Installed cloudinary@2.10.0 SDK via bun
+- Rewrote src/app/api/upload/route.ts: replaced fs/promises + sharp with Cloudinary uploader.upload() using base64 encoding
+- Upload strategy: public_id = `gymcrm/profiles/{memberId}`, overwrite:true so each member has exactly one image
+- Delete strategy: cloudinary.uploader.destroy() using the same public_id derived from memberId
+- Updated src/components/gym/image-upload.tsx: added GIF support, click-outside menu close, safe JSON parsing
+- member-profile.tsx required no changes — already saves profileImageUrl to DB via PUT /api/members
+- Created .env.example documenting DATABASE_URL + Cloudinary env vars
+- Updated .env with Cloudinary placeholder vars
+- Removed public/uploads/ directory and .gitignore entries
+- Removed sharp from dependencies (no longer needed)
+- Verified zero references to local filesystem upload paths remain
+- Build passes cleanly — all 21 pages generated, /api/upload route registered
+
+Stage Summary:
+- Cloudinary integration complete. Images now persist permanently across Railway deploys/restarts
+- No database schema changes needed — profileImageUrl stores Cloudinary secure_url
+- publicId derived from memberId so no separate storage needed
+- sharp dependency removed; cloudinary SDK handles image optimization (max 1200px, auto quality)
