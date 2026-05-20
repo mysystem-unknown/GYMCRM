@@ -79,7 +79,6 @@ export async function POST(request: NextRequest) {
         base64,
         {
           public_id: publicId,
-          folder: CLOUDINARY_FOLDER,
           overwrite: true,
           resource_type: 'image',
           transformation: [
